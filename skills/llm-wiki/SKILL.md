@@ -54,12 +54,16 @@ wiki/
 ① **读 `SCHEMA.md`** — 了解领域、约定和标签分类法。
 ② **读 `index.md`** — 了解有哪些页面和摘要。
 ③ **读 `log.md` 最后 20-30 条** — 了解近期活动。
+④ **如果 qmd 已配置**，用它搜索当前主题而非 grep。
 
 ```bash
 WIKI="${WIKI_PATH:-$HOME/wiki}"
 read_file "$WIKI/SCHEMA.md"
 read_file "$WIKI/index.md"
 read_file "$WIKI/log.md" offset=<last 30 lines>
+
+# 如果 qmd 已配置：
+qmd query "当前主题" -c wiki 2>/dev/null
 ```
 
 只有完成定向后才能摄入、查询或检查。这防止：
@@ -68,7 +72,7 @@ read_file "$WIKI/log.md" offset=<last 30 lines>
 - 违反 SCHEMA 的约定
 - 重复已记录的工作
 
-对于大型 wiki（100+ 页面），在创建任何新内容前还要搜索当前主题。
+对于大型 wiki（100+ 页面），qmd 搜索比 grep 更快更准。
 
 ## 两阶段编译
 
@@ -258,7 +262,7 @@ aliases:
 ---
 ```
 
-- 别名在 Obsidian、MCP 工具和查询中同样生效
+- 别名在 Obsidian、qmd 和 MCP 工具中同样生效
 
 ### index.md 模板
 
@@ -347,7 +351,12 @@ grep "^## \[" log.md | tail -5
    - 追加到 `log.md`：`## [YYYY-MM-DDThh:mm:ssZ] ingest | Source Title`
    - 在日志条目中列出每个创建或更新的页面（用 [[wikilinks]] 链接）
 
-⑥ **报告变更** — 向用户列出每个创建或更新的文件。
+⑥ **更新 qmd 索引**（如果已配置）：
+   ```bash
+   qmd update && qmd embed
+   ```
+
+⑦ **报告变更** — 向用户列出每个创建或更新的文件。
 
 单个来源可能触发 5-15 个 wiki 页面的更新。这是正常且理想的 — 这是增值效应。
 
@@ -356,15 +365,19 @@ grep "^## \[" log.md | tail -5
 当用户提出关于 wiki 领域的问题时：
 
 ① **读 `index.md`** 识别相关页面。
-② **对于 100+ 页面的 wiki**，还要搜索所有 `.md` 文件
-   查找关键词 — 仅靠索引可能遗漏相关内容。
-③ **读相关页面**。
-④ **综合回答** 从编译的知识中。引用你借鉴的 wiki 页面：
+② **如果 qmd 已配置**，用 `qmd query` 搜索 — 它混合 BM25 + 向量搜索 + LLM 重排，
+   比单纯 grep 或读索引更准更快：
+   ```bash
+   qmd query "用户的问题" -c wiki
+   ```
+③ **如果 qmd 未配置**（wiki 小于 ~100 页面），搜索所有 `.md` 文件查找关键词。
+④ **读相关页面**。
+⑤ **综合回答** 从编译的知识中。引用你借鉴的 wiki 页面：
    "基于 [[page-a]] 和 [[page-b]]..."
-⑤ **归档有价值的答案** — 如果答案是一个实质性的比较、深度分析或新颖综合，
+⑥ **归档有价值的答案** — 如果答案是一个实质性的比较、深度分析或新颖综合，
    在 `queries/` 或 `comparisons/` 中创建页面。
    不要归档简单的查找 — 只归档重新推导会很痛苦的答案。
-⑥ **更新 log.md** 记录查询以及是否归档。
+⑦ **更新 log.md** 记录查询以及是否归档。
 
 ### 3. Lint（检查）
 
@@ -416,10 +429,11 @@ grep "^## \[" log.md | tail -5
 一次摄入多个来源时，批量更新：
 1. 先读所有来源
 2. 识别所有来源中的所有实体和概念
-3. 检查所有已有页面（一次搜索，不是 N 次）
+3. 检查所有已有页面（qmd 或一次搜索，不是 N 次）
 4. 一次性创建/更新页面（避免冗余更新）
 5. 最后一次性更新 index.md
 6. 写一个覆盖整个批次的日志条目
+7. 如果 qmd 已配置，运行 `qmd update && qmd embed`
 
 ## 归档
 
@@ -429,6 +443,137 @@ grep "^## \[" log.md | tail -5
 3. 从 `index.md` 移除
 4. 更新任何链接到它的页面 — 将 wikilink 替换为纯文本 + "(已归档)"
 5. 记录归档操作
+
+## 可选工具：qmd
+
+[qmd](https://github.com/tobi/qmd) 是一个本地 markdown 搜索引擎，Karpathy 本人推荐。
+当 wiki 增长到 100+ 页面时，`index.md` + grep 就不够用了——qmd 提供混合搜索（BM25 + 语义向量 + LLM 重排），全部离线运行。
+
+### 什么时候用 qmd
+
+| Wiki 规模 | 推荐方式 |
+|-----------|---------|
+| 0-50 页面 | `index.md` 足够 |
+| 50-100 页面 | `index.md` + grep/搜索 |
+| 100+ 页面 | 安装 qmd |
+
+### 安装
+
+```bash
+# Node.js >= 22 或 Bun >= 1.0
+npm install -g @tobilu/qmd
+# 或
+bun install -g @tobilu/qmd
+```
+
+首次使用时会自动下载 3 个 GGUF 模型（共 ~2GB）：
+- embeddinggemma-300M — 向量嵌入
+- qwen3-reranker-0.6B — 结果重排
+- qmd-query-expansion-1.7B — 查询扩展
+
+### 配置 wiki 为 qmd collection
+
+```bash
+# 添加 wiki 为 collection
+qmd collection add ~/wiki --name wiki
+
+# 添加上下文描述，帮助搜索理解内容
+qmd context add qmd://wiki "LLM Wiki 知识库：实体、概念、比较和领域地图"
+qmd context add qmd://wiki/entities "实体页面：人物、组织、产品"
+qmd context add qmd://wiki/concepts "概念页面：技术、模式、理论"
+
+# 生成向量嵌入
+qmd embed
+```
+
+### 常用搜索命令
+
+```bash
+# 快速关键词搜索
+qmd search "transformer"
+
+# 语义搜索（理解意思，不只是关键词）
+qmd vsearch "如何让模型更高效地利用长文本"
+
+# 混合搜索（最佳质量）：BM25 + 向量 + 查询扩展 + LLM 重排
+qmd query "multi-head attention 的工作原理"
+
+# 限定制 collection
+qmd query "主题" -c wiki
+
+# 获取搜索结果对应的完整文档
+qmd get "concepts/self-attention.md"
+qmd get "#abc123"             # 用 docid（搜索结果中显示）
+
+# JSON 输出（给代理用）
+qmd query "主题" --json -n 10
+
+# 列出文件匹配项（给代理用）
+qmd query "主题" --all --files --min-score 0.3
+```
+
+### 搜索后更新索引
+
+摄入新来源后运行：
+```bash
+qmd update       # 重新扫描文件系统
+qmd embed        # 生成新文档的向量嵌入
+```
+
+也可以一步到位：
+```bash
+qmd update && qmd embed
+```
+
+### 中日韩多语言支持
+
+默认嵌入模型（embeddinggemma）对 CJK 覆盖有限。切换到多语言模型：
+
+```bash
+export QMD_EMBED_MODEL="hf:Qwen/Qwen3-Embedding-0.6B-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf"
+qmd embed -f    # 切换后必须重新嵌入
+```
+
+### MCP Server（给 MiMo Code 用）
+
+qmd 可以作为 MCP 服务器运行，让 MiMo Code 直接调用搜索工具：
+`query`、`get`、`multi_get`、`status`。
+
+```bash
+# 标准输入输出模式（MiMo Code 启动子进程）
+qmd mcp
+
+# HTTP 模式（共享长连接，避免重复加载模型）
+qmd mcp --http              # localhost:8181
+qmd mcp --http --port 8080  # 自定义端口
+
+# 后台守护进程模式
+qmd mcp --http --daemon
+qmd mcp stop                 # 停止
+qmd status                   # 查看状态
+```
+
+在 MiMo Code 配置 MCP 服务器指向 `qmd mcp` 即可。
+
+### 三种搜索的区别
+
+| 命令 | 方式 | 速度 | 质量 | 需要 LLM |
+|------|------|------|------|---------|
+| `qmd search` | BM25 关键词 | 最快 | 基础 | 否 |
+| `qmd vsearch` | 语义向量 | 中等 | 较好 | 嵌入模型 |
+| `qmd query` | 混合 + 重排 | 最慢 | 最好 | 三个模型全部 |
+
+## 可选工具：Obsidian
+
+Obsidian 是一个 markdown 笔记应用，可以用 Graph View 可视化 wiki 的链接网络。
+Wiki 目录开箱即用作为 Obsidian vault——直接打开 wiki/ 文件夹即可。
+
+推荐设置：
+- 附件文件夹设为 `raw/assets/`
+- 启用 Wikilinks（通常默认开启）
+- 安装 Dataview 插件查询 frontmatter
+
+Obsidian 是**可选的浏览工具**——wiki 本身就是纯 markdown 目录，不需要任何特殊软件。
 
 ## 常见陷阱
 
@@ -447,3 +592,6 @@ grep "^## \[" log.md | tail -5
 - **显式处理矛盾** — 不要静默覆盖。记录两个声明并标注日期，在 frontmatter 中标记 contradictedBy，标记供用户审查。
 - **多来源合并调 frontmatter** — confidence 取最小值，provenanceState 设 merged，contradictedBy 取去重并集。
 - **使用 claim 级引用** — 对具体数字和技术断言，用 `^[file.md:42-58]` 精确到行范围，不要只写文件级引用。
+- **qmd 不是必需的** — wiki < 100 页面时 index.md 够用，不要为了搜索工具而增加初始复杂度。
+- **摄入后更新 qmd** — 新页面写入后要 `qmd update && qmd embed`，否则搜索不到新内容。
+- **CJK 换嵌入模型** — 中文/日文/韩文内容切换 Qwen3-Embedding 后要 `qmd embed -f` 全量重新嵌入。

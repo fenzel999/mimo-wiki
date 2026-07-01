@@ -67,8 +67,7 @@ wiki/
 └── queries/            # 归档的查询结果
 ```
 
-Wiki 就是一个 markdown 文件目录 — 你可以在 Obsidian、VS Code 或任何编辑器中打开。
-不需要数据库，不需要特殊工具。
+Wiki 就是一个 markdown 文件目录。不需要数据库，不需要特殊工具。
 
 ### 两阶段编译
 
@@ -112,79 +111,101 @@ wiki 自动追踪每个页面依赖的来源文件及其内容哈希：
 2. **查询 (Query)** — 基于 wiki 编译的知识回答问题，引用来源页面，有价值的答案归档
 3. **检查 (Lint)** — 扫描孤儿页面、断链、引用错误、来源新鲜度、矛盾、陈旧内容等
 
-## Obsidian 集成
+## 可选工具：qmd 搜索引擎
 
-Wiki 目录开箱即用作为 Obsidian vault：
+[qmd](https://github.com/tobi/qmd) 是 Karpathy 本人在 Gist 中推荐的本地 markdown 搜索引擎。
+当 wiki 增长到 100+ 页面时，`index.md` + grep 就不够用了——qmd 提供混合搜索，全部离线运行。
 
-- `[[wikilinks]]` 渲染为可点击链接
-- Graph View 可视化知识网络
-- YAML frontmatter 驱动 Dataview 查询
-- `raw/assets/` 文件夹存放通过 `![[image.png]]` 引用的图片
+| Wiki 规模 | 推荐方式 |
+|-----------|---------|
+| 0-50 页面 | `index.md` 足够 |
+| 50-100 页面 | `index.md` + grep |
+| 100+ 页面 | 安装 qmd |
 
-最佳实践：
-
-- 将 Obsidian 的附件文件夹设置为 `raw/assets/`
-- 在 Obsidian 设置中启用 "Wikilinks"（通常默认开启）
-- 安装 Dataview 插件以执行查询，如 `TABLE tags FROM "entities" WHERE contains(tags, "company")`
-
-### 无界面同步（Obsidian Headless）
-
-在没有显示器的服务器上，可以使用 `obsidian-headless` 代替桌面应用。
-它通过 Obsidian Sync 无 GUI 同步 vault — 适合代理在服务器上写入 wiki，
-同时在 Obsidian 桌面端另一台设备上阅读。
-
-**安装：**
-```bash
-# 需要 Node.js 22+
-npm install -g obsidian-headless
-
-# 登录（需要 Obsidian Sync 订阅）
-ob login --email <email> --password '<password>'
-
-# 为 wiki 创建远程 vault
-ob sync-create-remote --name "LLM Wiki"
-
-# 连接 wiki 目录到 vault
-cd ~/wiki
-ob sync-setup --vault "<vault-id>"
-
-# 初始同步
-ob sync
-
-# 持续同步（前台 — 用 systemd 跑后台）
-ob sync --continuous
-```
-
-**systemd 后台持续同步：**
-```ini
-# ~/.config/systemd/user/obsidian-wiki-sync.service
-[Unit]
-Description=Obsidian LLM Wiki Sync
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=/path/to/ob sync --continuous
-WorkingDirectory=/home/user/wiki
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=default.target
-```
+### 快速上手
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now obsidian-wiki-sync
-# 启用 linger 使同步在注销后继续运行：
-sudo loginctl enable-linger $USER
+# 安装（需要 Node.js >= 22 或 Bun）
+npm install -g @tobilu/qmd
+
+# 添加 wiki 为 collection
+qmd collection add ~/wiki --name wiki
+
+# 添加上下文描述（帮助搜索理解内容）
+qmd context add qmd://wiki "LLM Wiki 知识库"
+qmd context add qmd://wiki/concepts "概念页面：技术、模式、理论"
+
+# 生成向量嵌入（首次需要下载 ~2GB 模型）
+qmd embed
 ```
+
+### 搜索方式
+
+```bash
+# 关键词搜索（最快）
+qmd search "transformer"
+
+# 语义搜索（理解意思）
+qmd vsearch "如何让模型更高效地利用长文本"
+
+# 混合搜索（最佳质量：BM25 + 向量 + LLM 重排）
+qmd query "multi-head attention 的工作原理"
+
+# 只搜 wiki collection
+qmd query "主题" -c wiki
+```
+
+### 摄入后更新索引
+
+```bash
+qmd update && qmd embed
+```
+
+### 中文支持
+
+默认嵌入模型对中文覆盖有限，切换到多语言模型：
+
+```bash
+export QMD_EMBED_MODEL="hf:Qwen/Qwen3-Embedding-0.6B-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf"
+qmd embed -f    # 切换后必须全量重新嵌入
+```
+
+### MCP Server 模式
+
+让 MiMo Code 直接调用 qmd 搜索工具：
+
+```bash
+# 标准输入输出（MiMo Code 启动子进程）
+qmd mcp
+
+# HTTP 模式（共享长连接，避免重复加载模型）
+qmd mcp --http              # localhost:8181
+qmd mcp --http --daemon     # 后台守护进程
+qmd mcp stop                # 停止
+```
+
+qmd 不是必需的，别在 wiki 还小时就装它——先让 wiki 长起来。
+
+## 可选工具：Obsidian
+
+Obsidian 是一个 markdown 笔记应用，可以用 Graph View 可视化 wiki 的链接网络。
+Wiki 目录开箱即用作为 Obsidian vault——直接打开 wiki/ 文件夹即可。
+
+推荐设置：
+- 附件文件夹设为 `raw/assets/`
+- 启用 Wikilinks
+- 安装 Dataview 插件查询 frontmatter
+- 安装 Marp 插件生成幻灯片
+
+Obsidian 是**可选的浏览工具**——wiki 本身就是纯 markdown 目录，不需要任何特殊软件。
 
 ## 相关工具
 
 [llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler) — Node.js CLI，将来源编译成概念 wiki，灵感同样来自 Karpathy。兼容 Obsidian，适合想要定时/CLI 驱动的编译流水线。
 
-权衡：它接管页面生成（替代代理对页面创建的判断），针对小语料调优。需要代理在循环中策展时用 mimo-wiki 技能；想要批量编译来源目录时用 llm-wiki-compiler。
+[qmd](https://github.com/tobi/qmd) — 本地 markdown 搜索引擎（BM25 + 向量 + LLM 重排），Karpathy 推荐用于 wiki 壮大后的搜索加速。也适用 MiMo Code 自身的技能/规则搜索。
+
+权衡：llm-wiki-compiler 接管页面生成（替代代理对页面创建的判断），针对小语料调优。需要代理在循环中策展时用 mimo-wiki 技能；想要批量编译来源目录时用 llm-wiki-compiler。
 
 ## 参考
 
@@ -192,4 +213,5 @@ sudo loginctl enable-linger $USER
 - [MiMo Code 技能文档](https://mimo.xiaomi.com/zh/mimocode/skills)
 - [Karpathy LLM Wiki 原始 Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 - [llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler)
+- [qmd](https://github.com/tobi/qmd)
 - [llmwiki 文档](https://llmwiki.atomicstrata.ai)
