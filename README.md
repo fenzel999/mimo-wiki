@@ -42,10 +42,6 @@ curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.s
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash
 ```
 
-### GitHub Template（浏览器，零命令）
-
-打开 [mimo-wiki](https://github.com/fenzel999/mimo-wiki) → **"Use this template"** → 创建新仓库 → clone 到本地。
-
 ## 使用
 
 安装后在 MiMo Code 中说：
