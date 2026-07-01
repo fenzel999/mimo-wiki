@@ -47,12 +47,12 @@ wiki/
 | 规模 | 方式 |
 |------|------|
 | < 100 页面 | 读 index.md + `search_files` 关键词 |
-| 100+ 页面 | BM25 搜索（SQLite FTS5，见 `references/bm25-search.sh`） |
+| 100+ 页面 | BM25 搜索（Node.js 脚本，见 `references/bm25-search.js`） |
 
-BM25 搜索使用 SQLite FTS5（系统自带），零外部依赖：
+BM25 搜索使用纯 Node.js 实现，零外部依赖：
 ```bash
-bash references/bm25-search.sh --reindex   # 首次或内容变化后
-bash references/bm25-search.sh "查询内容"  # 搜索
+node references/bm25-search.js --reindex   # 首次或内容变化后
+node references/bm25-search.js "查询内容"  # 搜索
 ```
 
 ## 恢复已有 Wiki（每次会话必做）
@@ -139,5 +139,5 @@ bash references/bm25-search.sh "查询内容"  # 搜索
 - log.md 模板：`templates/log-template.md`
 - 页面类型详解：`references/page-types.md`
 - 引用语法详解：`references/citations.md`
-- BM25 搜索脚本：`references/bm25-search.sh`
+- BM25 搜索脚本：`references/bm25-search.js`
 - BM25 算法说明：`references/bm25.md`
