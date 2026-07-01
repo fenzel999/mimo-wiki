@@ -17,109 +17,95 @@
 
 ## 快速开始
 
-### 安装
+### 方式 1：GitHub Template（最简单，零安装）
+
+打开 [mimo-wiki](https://github.com/fenzel999/mimo-wiki) → 点击绿色的 **"Use this template"** 按钮 → **"Create a new repository"**
+
+你的新仓库已包含所有文件。Clone 到本地即可使用。
+
+### 方式 2：npm 安装（需要 Node.js）
 
 ```bash
-# 安装到当前项目
-npx mimo-wiki
-
-# 安装到全局（所有项目可用）
-npx mimo-wiki --global
-
-# 安装到指定目录
-npx mimo-wiki --dir ~/my-project
+cd your-project && npx mimo-wiki       # 安装到当前项目
+npx mimo-wiki --global                 # 安装到全局
+npx mimo-wiki --dir ~/my-project       # 安装到指定目录
 ```
 
-安装后目录结构：
+### 方式 3：git sparse checkout（需要 Git）
+
+```bash
+git clone --depth 1 --filter=blob:none --sparse https://github.com/fenzel999/mimo-wiki.git temp
+cd temp && git sparse-checkout set AGENTS.md skills/llm-wiki
+cp AGENTS.md ../ && cp -r skills/llm-wiki ../skills/ && cd .. && rm -rf temp
+```
+
+### 安装后
+
+目录结构：
 
 ```
-目标目录/
+你的项目/
 ├── AGENTS.md                    # 全局规则 — 始终在上下文中
 └── skills/
     └── llm-wiki/
         ├── SKILL.md             # 操作指南 — 按需加载
-        ├── templates/           # 模板文件
-        │   ├── schema-template.md
-        │   ├── index-template.md
-        │   └── log-template.md
-        └── references/          # 参考资料
-            ├── bm25-search.js   # BM25 搜索脚本
-            ├── bm25.md          # BM25 算法说明
-            ├── page-types.md    # 页面类型详解
-            └── citations.md     # 引用语法详解
+        ├── templates/           # 初始化 wiki 时使用
+        └── references/          # 搜索脚本、算法说明等
 ```
-
-- **AGENTS.md** — 始终在上下文中，只写"必须/不要"的规则
-- **SKILL.md** — 按需加载，包含操作流程
-- **templates/** — 初始化 wiki 时使用
-- **references/** — 搜索、创建页面、写引用时按需读取
-
-### 初始化 Wiki
 
 在 MiMo Code 中说：
 
 > "帮我创建一个新的 LLM Wiki，领域是 AI/ML 研究"
 
-### 使用
+## 使用
 
-#### 摄入来源
+### 摄入来源
 
 ```
 你：帮我把这篇文章摄入 wiki: https://arxiv.org/abs/1706.03762
-
 代理：创建了 self-attention、multi-head-attention、transformer 等页面
 ```
 
-#### 切换会话后查询（知识跨会话持久化）
+### 切换会话后查询（知识跨会话持久化）
 
 ```
 === 会话 1 ===
-你：帮我摄入这 3 篇关于注意力机制的论文
+你：帮我摄入这 3 篇论文
 （代理创建页面，你关闭会话）
 
 === 会话 2（全新会话）===
 你：Flash Attention 和标准注意力的区别？
 
 代理：（自动读 SCHEMA → index → log → 页面已存在 → 综合回答）
-     基于 [[flash-attention]] 和 [[self-attention]]：
-     Flash Attention 通过分块算法将内存复杂度从 O(n²) 降到 O(n)...
+     基于 [[flash-attention]] 和 [[self-attention]]：...
      ^[flash-attention.md:12-28]
 
-（不需要重新提供论文，代理已经知道）
+（不需要重新提供论文）
 ```
 
-#### 健康检查
+### 健康检查
 
 ```
 你：帮我检查 wiki 健康状况
-
-代理：⚠ 孤儿页面：entities/old-model.md
-     ⚠ 数据差距：多个页面提到 "LoRA" 但缺少独立页面
-     建议：摄入一篇 LoRA 论文来填补差距
+代理：⚠ 孤儿页面、断链、数据差距、建议新来源
 ```
 
 ## 四种页面类型
 
 | 类型 | 回答什么 | 示例 | 何时创建 |
 |------|---------|------|---------|
-| **concept** | "这个东西是什么" | self-attention, fine-tuning | 2+ 来源或核心主题 |
+| **concept** | "这个东西是什么" | self-attention | 2+ 来源或核心主题 |
 | **entity** | "这个具体东西" | gpt-4, karpathy | 2+ 来源提到 |
 | **comparison** | "A vs B" | transformer-vs-rnn | 用户提问触发 |
 | **overview** | "这个领域有什么" | attention-overview | 领域积累到一定规模 |
 
-## 引用追溯
-
-- **段落级：** `^[knowledge-compilation.md]` — 该段来自哪个文件
-- **Claim 级：** `^[architecture-notes.md:42-58]` — 精确到行范围
-
 ## Obsidian（可选）
 
-Wiki 目录可以直接用 [Obsidian](https://obsidian.md) 打开。
-在 MiMo Code 中直接对话就能完成所有操作，Obsidian 只是可选的浏览工具。
+Wiki 目录可直接用 [Obsidian](https://obsidian.md) 打开浏览。
+MiMo Code 中直接对话就能完成所有操作。
 
 ## 参考
 
-- [MiMo Code 规则文档](https://mimo.xiaomi.com/zh/mimocode/rules)
-- [MiMo Code 技能文档](https://mimo.xiaomi.com/zh/mimocode/skills)
 - [Karpathy LLM Wiki 原始 Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+- [MiMo Code 文档](https://mimo.xiaomi.com/zh/mimocode)
 - [GitHub 仓库](https://github.com/fenzel999/mimo-wiki)
