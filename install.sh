@@ -28,7 +28,7 @@ FILES=(
 # 默认当前目录，--global 切换到全局
 TARGET="$(pwd)"
 if [[ "${1:-}" == "--global" ]]; then
-  TARGET="$HOME/.mimocode"
+  TARGET="$HOME/.config/mimocode"
   echo "模式: 全局安装"
 else
   echo "模式: 项目安装（当前目录）"

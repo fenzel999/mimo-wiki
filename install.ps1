@@ -27,7 +27,7 @@ $files = @(
 )
 
 if ($Global) {
-    $target = Join-Path $env:USERPROFILE ".mimocode"
+    $target = Join-Path $env:USERPROFILE ".config\mimocode"
     Write-Host "模式: 全局安装"
 } else {
     $target = Get-Location

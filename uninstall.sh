@@ -11,7 +11,7 @@ set -e
 
 TARGET="$(pwd)"
 if [[ "${1:-}" == "--global" ]]; then
-  TARGET="$HOME/.mimocode"
+  TARGET="$HOME/.config/mimocode"
   echo "模式: 全局卸载"
 else
   echo "模式: 项目卸载（当前目录）"
