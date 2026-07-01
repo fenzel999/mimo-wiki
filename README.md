@@ -24,7 +24,7 @@ mimo-wiki/
 | `skills/llm-wiki/SKILL.md` | 完整的操作模板和步骤，按需加载 | 复制到本地目录 或 远程 URL |
 
 AGENTS.md 始终在上下文中，所以保持精简（只写规则）；SKILL.md 在代理需要时才加载，
-包含完整的 SCHEMA 模板、摄入/查询/检查的逐步步骤、Obsidian 集成等。
+包含完整的 SCHEMA 模板、摄入/查询/检查的逐步步骤和常见陷阱。
 
 ## 配置步骤
 
@@ -134,19 +134,93 @@ wiki/
 └── queries/            # 归档的查询结果
 ```
 
+Wiki 就是一个 markdown 文件目录 — 你可以在 Obsidian、VS Code 或任何编辑器中打开。
+不需要数据库，不需要特殊工具。
+
 ### 三种核心操作
 
 1. **摄入 (Ingest)** — 把来源（URL、PDF、文本）集成到 wiki：存原始文件→检查已有页面→创建/更新 wiki 页面→更新索引和日志
 2. **查询 (Query)** — 基于 wiki 编译的知识回答问题，引用来源页面，有价值的答案归档
 3. **检查 (Lint)** — 扫描孤儿页面、断链、索引完整性、陈旧内容、矛盾、来源漂移等
 
-### Obsidian 集成
+## Obsidian 集成
 
 Wiki 目录开箱即用作为 Obsidian vault：
+
 - `[[wikilinks]]` 渲染为可点击链接
 - Graph View 可视化知识网络
 - YAML frontmatter 驱动 Dataview 查询
-- 建议将 Obsidian 附件文件夹设置为 `raw/assets/`
+- `raw/assets/` 文件夹存放通过 `![[image.png]]` 引用的图片
+
+最佳实践：
+
+- 将 Obsidian 的附件文件夹设置为 `raw/assets/`
+- 在 Obsidian 设置中启用 "Wikilinks"（通常默认开启）
+- 安装 Dataview 插件以执行查询，如 `TABLE tags FROM "entities" WHERE contains(tags, "company")`
+
+如果你同时使用 Obsidian 技能，将 `OBSIDIAN_VAULT_PATH` 设置为 wiki 路径即可。
+
+### 无界面同步（Obsidian Headless）
+
+在没有显示器的服务器上，可以使用 `obsidian-headless` 代替桌面应用。
+它通过 Obsidian Sync 无 GUI 同步 vault — 适合代理在服务器上写入 wiki，
+同时在 Obsidian 桌面端另一台设备上阅读。
+
+**安装：**
+```bash
+# 需要 Node.js 22+
+npm install -g obsidian-headless
+
+# 登录（需要 Obsidian Sync 订阅）
+ob login --email <email> --password '<password>'
+
+# 为 wiki 创建远程 vault
+ob sync-create-remote --name "LLM Wiki"
+
+# 连接 wiki 目录到 vault
+cd ~/wiki
+ob sync-setup --vault "<vault-id>"
+
+# 初始同步
+ob sync
+
+# 持续同步（前台 — 用 systemd 跑后台）
+ob sync --continuous
+```
+
+**systemd 后台持续同步：**
+```ini
+# ~/.config/systemd/user/obsidian-wiki-sync.service
+[Unit]
+Description=Obsidian LLM Wiki Sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/path/to/ob sync --continuous
+WorkingDirectory=/home/user/wiki
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now obsidian-wiki-sync
+# 启用 linger 使同步在注销后继续运行：
+sudo loginctl enable-linger $USER
+```
+
+## 相关工具
+
+[llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler) 是一个 Node.js CLI，
+将来源编译成概念 wiki，灵感同样来自 Karpathy。它兼容 Obsidian，
+想要定时/CLI 驱动的编译流水线的用户可以指向同一个 vault。
+
+权衡：它接管页面生成（替代代理对页面创建的判断），针对小语料调优。
+当你需要代理在循环中策展时用 mimo-wiki 技能；当你想要批量编译来源目录时用 llm-wiki-compiler。
 
 ## 更新流程
 
@@ -181,3 +255,4 @@ Wiki 目录开箱即用作为 Obsidian vault：
 - [MiMo Code 规则文档](https://mimo.xiaomi.com/zh/mimocode/rules)
 - [MiMo Code 技能文档](https://mimo.xiaomi.com/zh/mimocode/skills)
 - [Karpathy LLM Wiki 原始 Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+- [llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler)

@@ -1,12 +1,7 @@
 # Karpathy LLM Wiki 规则
 
-## Wiki 模式
-
-本项目使用 Karpathy LLM Wiki 模式管理知识库。Wiki 是由互链 markdown 文件组成的持久化知识库，
-一次编译知识并持续更新，而非每次查询从零检索。交叉引用已经存在，矛盾已被标记，
-综合分析反映所有已摄入的内容。
-
-分工：人类策划来源并指导分析方向，代理负责摘要、交叉引用、归档和维护一致性。
+本项目使用 Karpathy LLM Wiki 模式——由互链 markdown 文件组成的持久化知识库。
+一次编译知识并持续更新，而非每次从零检索。
 
 ## Wiki 位置
 
@@ -32,7 +27,7 @@ wiki/
 
 ## 规则
 
-### 会话开始时
+### 会话开始时（每次必须）
 
 1. 先读 `SCHEMA.md` 了解领域约定和标签分类法
 2. 再读 `index.md` 了解已有页面
@@ -102,7 +97,7 @@ wiki/
 ### 详细操作模板
 
 完整的 SCHEMA.md 模板、index.md 模板、log.md 模板、frontmatter 规范、
-ingest/query/lint 的逐步操作步骤、Obsidian 集成和常见陷阱，加载 `llm-wiki` 技能获取：
+ingest/query/lint 的逐步操作步骤和常见陷阱，加载 `llm-wiki` 技能获取：
 ```
 skill({ name: "llm-wiki" })
 ```
