@@ -165,22 +165,278 @@ Wiki 目录开箱即用作为 Obsidian vault——直接在 Obsidian 中打开 w
 
 ### 推荐插件
 
-#### 必装
+#### 必装插件
 
-| 插件 | 作用 | 安装方式 |
-|------|------|---------|
-| **Omnisearch** | BM25 全文搜索，支持中文 | Settings → Community Plugins → Browse → 搜索 "Omnisearch" → Install → Enable |
-| **Dataview** | 用 SQL 查询 frontmatter，生成动态表格 | 同上，搜索 "Dataview" |
-| **Web Clipper** | 浏览器扩展，一键将网页转为 markdown 保存到 vault | Chrome/Firefox 扩展商店搜索 "Obsidian Web Clipper" |
+##### 1. Omnisearch — BM25 全文搜索
 
-#### 推荐
+**作用：** 为 Obsidian 提供高质量的全文搜索能力，使用 BM25 算法（与 Elasticsearch 相同的底层算法）。
 
-| 插件 | 作用 |
-|------|------|
-| **Graph View**（内置） | 可视化 wiki 链接网络，看哪些页面是枢纽、哪些是孤岛 |
-| **Marp** | Markdown 幻灯片，可直接从 wiki 内容生成演示文稿 |
-| **Tag Wrangler** | 批量重命名、合并标签 |
-| **Periodic Notes** | 日记/周记/月记模板 |
+**为什么需要：**
+- Obsidian 内置搜索只支持简单的子串匹配
+- Omnisearch 支持**语义相关性排序**——搜索 "attention mechanism" 会优先显示最相关的页面
+- 支持**中文搜索**（默认的英文分词器对中文效果有限，但比内置搜索好很多）
+- 支持**拼写容错**——输错几个字母也能找到
+- 支持**引号短语**精确匹配和 `-排除` 语法
+- 支持 `path:` 和 `ext:` 过滤器
+- 安装 Text Extractor 插件后可搜索 PDF 和图片中的文字（OCR）
+
+**安装：**
+1. Obsidian → Settings → Community Plugins → Browse
+2. 搜索 "Omnisearch" → Install → Enable
+3. 无需额外配置，BM25 搜索立即可用
+
+**使用：**
+- `Ctrl+Shift+F`（或 `Cmd+Shift+F`）打开搜索面板
+- 输入关键词 → 结果按 BM25 相关性排序
+- `"`multi-head attention"` — 精确匹配短语
+- `attention -self` — 排除包含 "self" 的结果
+- `path:concepts transformer` — 只在 concepts 目录搜索
+
+**与 MCP 的关系：**
+- 安装 Omnisearch 后，MCP 工具 `obsidian_search_notes` 的 `omnisearch` 模式自动可用
+- 代理可以通过 MCP 调用 BM25 搜索，无需你手动操作
+
+---
+
+##### 2. Dataview — SQL 查询 frontmatter
+
+**作用：** 用类似 SQL 的语法查询所有笔记的 YAML frontmatter，生成动态表格和列表。
+
+**为什么需要：**
+- wiki 的每个页面都有 frontmatter（tags, kind, confidence, sources 等）
+- Dataview 可以**动态查询**这些元数据，无需手动维护列表
+- 可以创建"活的"索引——自动列出所有 concept 页面、所有 confidence < 0.5 的页面等
+- 可以按标签、类型、日期、来源数量等维度聚合
+
+**安装：**
+1. Settings → Community Plugins → Browse
+2. 搜索 "Dataview" → Install → Enable
+3. Settings → Dataview → 开启 "Enable JavaScript Queries"（可选，更强大）
+
+**使用示例：**
+
+```dataview
+TABLE kind, confidence, sources
+FROM "concepts"
+WHERE confidence < 0.5
+SORT updated DESC
+```
+→ 列出所有 confidence < 0.5 的概念页面，按更新时间倒序
+
+```dataview
+LIST
+FROM #model
+SORT file.name ASC
+```
+→ 列出所有带 `#model` 标签的页面
+
+```dataview
+TABLE length(sources) AS "来源数"
+FROM ""
+WHERE kind = "concept"
+SORT length(sources) DESC
+```
+→ 按来源数量排序所有概念页面（来源越多越可靠）
+
+**高级用法：**
+- `Dataview JS` — 用 JavaScript 写更复杂的查询
+- `TASK` 查询 — 收集所有笔记中的待办事项
+- `CALENDAR` — 按日期可视化笔记
+
+---
+
+##### 3. Web Clipper — 浏览器一键剪藏
+
+**作用：** 浏览器扩展，一键将网页转换为干净的 markdown 保存到 Obsidian vault。
+
+**为什么需要：**
+- 网页是 wiki 的主要来源之一
+- 手动复制粘贴会丢失格式、图片、链接
+- Web Clipper 自动提取正文、转换 markdown、下载图片
+- 可以预设保存位置（如 `raw/articles/`）
+- 是往 wiki 添加网络来源**最便捷的方式**
+
+**安装：**
+1. Chrome Web Store 或 Firefox Add-ons 搜索 "Obsidian Web Clipper"
+2. 安装扩展
+3. 点击扩展图标 → 设置：
+   - **Vault** → 选择你的 wiki 目录
+   - **Folder** → `raw/articles`
+   - **Template** → 可选，自定义剪藏模板
+4. 浏览网页时点击扩展图标 → 自动保存为 markdown
+
+**使用：**
+- 浏览到想保存的文章 → 点击 Web Clipper 图标
+- 自动提取正文、标题、作者、发布日期
+- 图片自动下载到 `raw/assets/`
+- 保存为 `raw/articles/文章标题.md`
+- 你可以在保存前编辑内容、添加标签
+
+**与代理协作：**
+- 剪藏后告诉代理："帮我摄入刚剪藏的文章"
+- 代理会读取文件、执行两阶段编译、更新 wiki
+
+---
+
+#### 推荐插件
+
+##### 4. Graph View — 链接网络可视化（内置）
+
+**作用：** 可视化 wiki 中所有页面之间的链接关系，以节点和连线的形式展示。
+
+**为什么需要：**
+- 直观看到哪些页面是**枢纽**（被多个页面链接）
+- 发现**孤岛页面**（没有入站链接的页面）
+- 理解知识结构——哪些概念紧密关联，哪些是孤立的
+- 帮助决定哪些页面需要更多交叉引用
+
+**使用：**
+- 左侧边栏点击 "Open graph view" 图标（或 `Ctrl+G`）
+- 节点 = 页面，连线 = `[[wikilinks]]`
+- 颜色 = 按标签或目录分组
+- 点击节点跳转到该页面
+- 拖拽节点重新布局
+
+**设置：**
+- Settings → Graph → 显示标签颜色、调整节点大小
+- Local Graph（单页视图）— 只看当前页面的链接关系
+
+---
+
+##### 5. Marp — Markdown 幻灯片
+
+**作用：** 直接从 markdown 内容生成演示文稿（PPT/PDF），无需 PowerPoint。
+
+**为什么需要：**
+- wiki 中的知识可以直接转化为演示材料
+- 适合给团队分享 wiki 中的研究成果
+- 纯 markdown 格式，版本控制友好
+
+**安装：**
+1. Settings → Community Plugins → Browse
+2. 搜索 "Marp for Obsidian" → Install → Enable
+
+**使用：**
+- 在笔记顶部添加 Marp frontmatter：
+  ```yaml
+  ---
+  marp: true
+  ---
+  ```
+- 用 `---` 分隔每页幻灯片
+- 用 `<!-- _class: lead -->` 控制样式
+- 右键 → "Marp: Export Slide Deck" → 导出 PDF/HTML/PPTX
+
+**示例：**
+```markdown
+---
+marp: true
+---
+
+# Transformer 架构
+## 自注意力机制详解
+
+---
+
+## 核心思想
+
+- 注意力计算值的加权和
+- 多头注意力并行应用 h 次
+- 位置编码注入序列信息
+
+---
+
+## 与 RNN 的区别
+
+| | Transformer | RNN |
+|--|------------|-----|
+| 并行性 | ✅ 完全并行 | ❌ 顺序处理 |
+| 长距离依赖 | ✅ 直接建模 | ⚠️ 梯度消失 |
+```
+
+---
+
+##### 6. Tag Wrangler — 标签批量管理
+
+**作用：** 批量重命名、合并、删除标签，保持标签分类法的一致性。
+
+**为什么需要：**
+- wiki 增长过程中，标签可能会不一致（如 `model` vs `models`）
+- 手动修改每个文件的 frontmatter 很痛苦
+- Tag Wrangler 一键重命名，自动更新所有使用该标签的文件
+
+**安装：**
+1. Settings → Community Plugins → Browse
+2. 搜索 "Tag Wrangler" → Install → Enable
+
+**使用：**
+- 在标签面板（Tag Pane）中右键点击标签
+- 选择 "Rename tag..."
+- 输入新名称 → 自动更新所有文件
+- 支持重命名嵌套标签（如 `model/transformer` → `architecture/transformer`）
+
+---
+
+##### 7. Periodic Notes — 周期性笔记模板
+
+**作用：** 创建日记、周记、月记、年记，支持自定义模板。
+
+**为什么需要：**
+- 记录 wiki 的使用日志和思考过程
+- 周记可以总结本周摄入的来源和发现
+- 月记可以回顾 wiki 的增长和方向调整
+
+**安装：**
+1. Settings → Community Plugins → Browse
+2. 搜索 "Periodic Notes" → Install → Enable
+
+**设置：**
+- Settings → Periodic Notes → 配置：
+  - **Daily Note** → 格式 `YYYY-MM-DD`，模板可选
+  - **Weekly Note** → 格式 `YYYY-Www`，如 `2026-W27`
+  - **Monthly Note** → 格式 `YYYY-MM`
+
+**模板示例（周记）：**
+```markdown
+# 周记 {{date:YYYY-Www}}
+
+## 本周摄入
+- 
+
+## 本周发现
+- 
+
+## 下周计划
+- 
+
+## Wiki 状态
+- 总页面数：
+- 新增页面：
+- 需要审查的页面：
+```
+
+---
+
+##### 8. Text Extractor — PDF/OCR 文本提取
+
+**作用：** 从 PDF、图片中提取文字，让 Omnisearch 可以搜索这些内容。
+
+**为什么需要：**
+- wiki 的 `raw/papers/` 中可能有 PDF 论文
+- 默认情况下 Obsidian 无法搜索 PDF 内容
+- Text Extractor 提取 PDF 文字 → Omnisearch 可以 BM25 搜索
+- 支持 OCR（图片中的文字）
+
+**安装：**
+1. Settings → Community Plugins → Browse
+2. 搜索 "Text Extractor" → Install → Enable
+
+**使用：**
+- 安装后自动生效
+- Omnisearch 搜索时会自动包含 PDF 和图片中的文字
+- 无需手动操作
+
+---
 
 ### 推荐设置
 
@@ -192,30 +448,6 @@ Settings → Files and links：
 
 Settings → Hotkeys：
 - "Download attachments for current file" → `Ctrl+Shift+D`（图片本地化快捷键）
-
-### Omnisearch 配置
-
-安装 Omnisearch 后无需额外配置，BM25 搜索立即可用。
-
-支持的功能：
-- **关键词搜索** — 输入框直接搜
-- **引号短语** — `"multi-head attention"` 精确匹配
-- **排除** — `attention -self` 排除包含 self 的结果
-- **路径过滤** — `path:concepts transformer` 只搜 concepts 目录
-- **拼写容错** — 输错几个字母也能找到
-- **PDF/OCR** — 安装 Text Extractor 插件后可搜索 PDF 和图片中的文字
-
-### Obsidian Web Clipper
-
-浏览器扩展（Chrome/Firefox），一键将网页转为 markdown：
-
-1. 安装扩展
-2. 设置 Vault 为你的 wiki 目录
-3. 设置 Folder 为 `raw/articles`
-4. 浏览网页时点击扩展图标 → 自动保存为 markdown
-5. 图片会自动下载到 `raw/assets/`
-
-这是往 wiki 添加网络来源最便捷的方式。
 
 ## Obsidian MCP Server
 
