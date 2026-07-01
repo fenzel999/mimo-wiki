@@ -47,9 +47,13 @@ wiki/
 | 规模 | 方式 |
 |------|------|
 | < 100 页面 | 读 index.md + `search_files` 关键词 |
-| 100+ 页面 | BM25 搜索（Python 脚本，见 `references/bm25.md`） |
+| 100+ 页面 | BM25 搜索（SQLite FTS5，见 `references/bm25-search.sh`） |
 
-BM25 搜索依赖 `pip install rank_bm25 jieba`，代理直接在 wiki 目录上执行 Python 脚本，无需外部服务。
+BM25 搜索使用 SQLite FTS5（系统自带），零外部依赖：
+```bash
+bash references/bm25-search.sh --reindex   # 首次或内容变化后
+bash references/bm25-search.sh "查询内容"  # 搜索
+```
 
 ## 恢复已有 Wiki（每次会话必做）
 
@@ -135,4 +139,5 @@ BM25 搜索依赖 `pip install rank_bm25 jieba`，代理直接在 wiki 目录上
 - log.md 模板：`templates/log-template.md`
 - 页面类型详解：`references/page-types.md`
 - 引用语法详解：`references/citations.md`
-- BM25 搜索实现：`references/bm25.md`
+- BM25 搜索脚本：`references/bm25-search.sh`
+- BM25 算法说明：`references/bm25.md`
