@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # mimo-wiki 卸载脚本 (macOS / Linux)
-# 用法:
+#
+# 从当前项目卸载:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash
+#
+# 从全局卸载:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash -s -- --global
 
 set -e
 
-TARGET=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --global)  TARGET="$HOME/.mimocode"; shift ;;
-    --dir)     TARGET="$2"; shift 2 ;;
-    *)         TARGET="$(pwd)"; break ;;
-  esac
-done
-TARGET="${TARGET:-$(pwd)}"
+TARGET="$(pwd)"
+if [[ "${1:-}" == "--global" ]]; then
+  TARGET="$HOME/.mimocode"
+  echo "模式: 全局卸载"
+else
+  echo "模式: 项目卸载（当前目录）"
+fi
 
 echo "从 $TARGET 卸载 mimo-wiki"
 echo ""
 
-# 删除文件
 FILES=(
   "skills/llm-wiki/references/bm25-search.js"
   "skills/llm-wiki/references/bm25.md"

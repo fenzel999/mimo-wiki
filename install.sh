@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # mimo-wiki 安装脚本 (macOS / Linux)
-# 用法:
+#
+# 安装到当前项目:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
+#
+# 安装到全局:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --global
-#   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --dir ~/my-project
 
 set -e
 
@@ -23,24 +25,16 @@ FILES=(
   "skills/llm-wiki/references/citations.md"
 )
 
-# 解析参数
-TARGET=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --global)  TARGET="$HOME/.mimocode"; shift ;;
-    --dir)     TARGET="$2"; shift 2 ;;
-    --help|-h)
-      echo "用法:"
-      echo "  curl -sSL $BASE/install.sh | bash              安装到当前目录"
-      echo "  curl -sSL $BASE/install.sh | bash -s -- --global   安装到全局"
-      echo "  curl -sSL $BASE/install.sh | bash -s -- --dir PATH  安装到指定目录"
-      exit 0 ;;
-    *) echo "未知参数: $1"; exit 1 ;;
-  esac
-done
+# 默认当前目录，--global 切换到全局
+TARGET="$(pwd)"
+if [[ "${1:-}" == "--global" ]]; then
+  TARGET="$HOME/.mimocode"
+  echo "模式: 全局安装"
+else
+  echo "模式: 项目安装（当前目录）"
+fi
 
-TARGET="${TARGET:-$(pwd)}"
-echo "mimo-wiki 安装到: $TARGET"
+echo "安装到: $TARGET"
 echo ""
 
 installed=0

@@ -19,10 +19,10 @@
 ### Windows (PowerShell)
 
 ```powershell
-# 安装到当前目录
+# 安装到当前项目（默认）
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex
 
-# 安装到全局
+# 安装到全局（所有项目可用）
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex; Install-MimoWiki -Global
 
 # 卸载
@@ -32,10 +32,10 @@ irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.ps1 |
 ### macOS / Linux (bash)
 
 ```bash
-# 安装到当前目录
+# 安装到当前项目（默认）
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
 
-# 安装到全局
+# 安装到全局（所有项目可用）
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --global
 
 # 卸载
