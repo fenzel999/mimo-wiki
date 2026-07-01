@@ -1,563 +1,139 @@
 ---
 name: llm-wiki
-description: "Karpathy LLM Wiki: 构建和查询互链 markdown 知识库。包含完整模板、摄入/查询/检查步骤和常见陷阱。当用户要求创建 wiki、摄入来源、查询 wiki、检查 wiki 健康度、或提到 wiki/知识库/笔记时使用。"
+description: "Karpathy LLM Wiki: 构建和查询互链 markdown 知识库。当用户要求创建 wiki、摄入来源、查询 wiki、检查 wiki 健康度、或提到 wiki/知识库/笔记时使用。"
 ---
 
-# Karpathy LLM Wiki — 详细操作手册
+# Karpathy LLM Wiki
 
 构建和维护一个持久化、不断增值的互链 markdown 知识库。
-基于 [Andrej Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)。
+基于 [Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)。
 
-与传统 RAG（每次查询从零开始重新发现知识）不同，Wiki 一次编译知识并保持更新。
-交叉引用已经存在，矛盾已被标记，综合分析反映了所有已摄入的内容。
+与传统 RAG 不同，Wiki 一次编译知识并保持更新。交叉引用已存在，矛盾已标记。
 
-## 何时使用此技能
+## 何时使用
 
-当用户做以下事情时使用：
-- 要求创建、构建或开始一个 wiki 或知识库
-- 要求摄入、添加或处理一个来源到 wiki
-- 提出问题且已存在配置路径的 wiki
-- 要求检查、审计或健康检查 wiki
-- 在研究上下文中提到 wiki、知识库或"笔记"
+- 创建/构建 wiki 或知识库
+- 摄入/添加来源到 wiki
+- 提问且 wiki 已存在
+- 检查/审计 wiki 健康度
 
 ## Wiki 位置
 
-通过环境变量 `WIKI_PATH` 设置。如果未设置，默认 `~/wiki`。
+`WIKI_PATH` 环境变量，未设置则 `~/wiki`。
 
-## 三层架构
+## 目录结构
 
 ```
 wiki/
-├── SCHEMA.md           # 约定、结构规则、领域配置
-├── index.md            # 分区内容目录，每页一行摘要
-├── log.md              # 按时间顺序的操作日志（只追加，每年轮转）
-├── raw/                # 第 1 层：不可变的原始来源
-│   ├── articles/       # 网络文章、剪报
-│   ├── papers/         # PDF、arxiv 论文
-│   ├── transcripts/    # 会议笔记、访谈
-│   └── assets/         # 图片、图表
-├── entities/           # 第 2 层：实体页面（人物、组织、产品、模型）
-├── concepts/           # 第 2 层：概念/主题页面
-├── comparisons/        # 第 2 层：并排分析
-├── overviews/          # 第 2 层：领域地图页面
-└── queries/            # 第 2 层：值得保留的已归档查询结果
+├── SCHEMA.md           # 约定、标签分类法（活文档）
+├── index.md            # 分区内容目录
+├── log.md              # 操作日志（只追加）
+├── raw/                # 不可变的原始来源
+│   ├── articles/       # 网络文章
+│   ├── papers/         # PDF、论文
+│   ├── transcripts/    # 会议笔记
+│   └── assets/         # 图片
+├── entities/           # 实体页面
+├── concepts/           # 概念页面
+├── comparisons/        # 比较页面
+├── overviews/          # 总览页面
+└── queries/            # 归档的查询结果
 ```
 
-1. **原始来源层 (raw/)** — 不可变。代理读取但从不修改。
-2. **Wiki 层 (entities/, concepts/, comparisons/, overviews/, queries/)** — 代理拥有的 markdown 文件，由代理创建、更新和交叉引用。
-3. **模式层 (SCHEMA.md)** — 定义结构、约定和标签分类法。**这是活文档** —— 用户和代理协同进化，随着领域理解加深会持续更新。
+三层：raw/（不可变）→ wiki 页面（代理维护）→ SCHEMA.md（活文档，协同进化）。
 
 ## 搜索方式
 
-wiki 的搜索能力分三层，按 wiki 规模选择：
+| 规模 | 方式 |
+|------|------|
+| < 100 页面 | 读 index.md + `search_files` 关键词 |
+| 100+ 页面 | BM25 搜索（MCP `obsidian_search_notes` mode=`omnisearch`） |
 
-### 第 1 层：index.md（任何规模可用）
+BM25 算法详情见 `references/bm25.md`。
 
-读 `index.md`，每个页面有一行摘要。适合：
-- 快速浏览有哪些页面
-- 按类型（entity/concept/comparison/overview）找页面
-- 已知要找什么类型的页面
+## 恢复已有 Wiki（每次会话必做）
 
-### 第 2 层：关键词搜索（< 100 页面）
-
-用 `search_files` 搜索所有 `.md` 文件：
-- 搜页面标题、内容、标签
-- 适合精确查找某个术语出现在哪些页面
-
-### 第 3 层：BM25 搜索（100+ 页面，通过 MCP）
-
-当 wiki 增长到 100+ 页面，index.md + 关键词搜索就不够用了。
-此时通过 Obsidian MCP Server 的 `obsidian_search_notes` 工具使用 BM25 搜索。
-
-#### BM25 算法简介
-
-BM25（Best Matching 25）是信息检索领域的经典排序算法，Elasticsearch 的默认相关性算法。
-核心思想：一个词在文档中出现频率越高、在整个集合中出现频率越低，该文档与查询越相关。
-
-**BM25 公式：**
-
-```
-score(D, Q) = Σ IDF(qi) · (f(qi, D) · (k1 + 1)) / (f(qi, D) + k1 · (1 - b + b · |D| / avgdl))
-```
-
-其中：
-- `qi` = 查询中的第 i 个词
-- `f(qi, D)` = 词 qi 在文档 D 中的出现频率
-- `|D|` = 文档 D 的长度（词数）
-- `avgdl` = 所有文档的平均长度
-- `k1` = 词频饱和参数（通常 1.2-2.0），控制词频增长的收益递减
-- `b` = 文档长度归一化参数（通常 0.75），控制长文档的惩罚程度
-- `IDF(qi)` = 逆文档频率 = log((N - n(qi) + 0.5) / (n(qi) + 0.5) + 1)
-  - N = 总文档数
-  - n(qi) = 包含词 qi 的文档数
-
-**为什么 BM25 适合 wiki：**
-- **词频饱和** — 一个词出现 10 次 vs 20 次，相关性差距很小（避免长文档霸榜）
-- **文档长度归一化** — 短页面（entity）和长页面（overview）公平竞争
-- **逆文档频率** — "transformer" 比 "the" 权重高得多（罕见词更有区分度）
-- **无需训练** — 纯统计方法，wiki 内容变化时无需重新训练模型
-
-#### 通过 MCP 调用 BM25
-
-需要安装：
-1. **Obsidian MCP Server** — [cyanheads/obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server)
-2. **Omnisearch 插件** — [obsidian-omnisearch](https://github.com/scambier/obsidian-omnisearch)（提供 BM25 引擎）
-3. **Local REST API 插件** — MCP Server 的通信桥梁
-
-安装后，通过 MCP 工具 `obsidian_search_notes` 调用：
-
-```json
-{
-  "name": "obsidian_search_notes",
-  "arguments": {
-    "query": "transformer attention mechanism",
-    "mode": "omnisearch"
-  }
-}
-```
-
-三种搜索模式：
-
-| mode | 算法 | 速度 | 质量 | 适用场景 |
-|------|------|------|------|---------|
-| `text` | 子串匹配 | 最快 | 基础 | 快速找关键词 |
-| `jsonlogic` | 结构化过滤 | 中等 | 精确 | 按 frontmatter/tags/路径筛选 |
-| `omnisearch` | **BM25** | 较慢 | **最好** | 语义相关搜索、拼写容错 |
-
-#### BM25 搜索特性
-
-Omnisearch 的 BM25 实现支持：
-- **引号短语** — `"multi-head attention"` 精确匹配短语
-- **排除语法** — `attention -self` 排除包含 "self" 的结果
-- **路径过滤** — `path:concepts transformer` 只搜 concepts 目录
-- **扩展名过滤** — `ext:md` 只搜 markdown 文件
-- **拼写容错** — 输错几个字母也能找到
-- **PDF/OCR** — 安装 Text Extractor 插件后可搜索 PDF 和图片中的文字
-
-#### 何时用哪种搜索
-
-| 场景 | 推荐方式 |
-|------|---------|
-| 定向（新会话开始） | 读 index.md |
-| 找某个具体页面 | `search_files` 关键词 |
-| "这个概念在哪出现过" | BM25（omnisearch 模式） |
-| 按标签/类型/日期筛选 | jsonlogic 模式 |
-| wiki < 100 页面 | index.md + search_files 足够 |
-
-## 恢复已有 Wiki（关键 — 每次会话都要做）
-
-当用户有已有 wiki 时，**在做任何事之前必须先定向**：
-
-① **读 `SCHEMA.md`** — 了解领域、约定和标签分类法。
-② **读 `index.md`** — 了解有哪些页面和摘要。
-③ **读 `log.md` 最后 20-30 条** — 了解近期活动。
-④ **大型 wiki（100+ 页面）** 用 BM25 搜索当前主题相关页面：
-   ```
-   obsidian_search_notes(query="当前主题", mode="omnisearch")
-   ```
-   或用 `search_files` 搜关键词。
-
-只有完成定向后才能摄入、查询或检查。这防止：
-- 为已存在的实体创建重复页面
-- 遗漏到已有内容的交叉引用
-- 违反 SCHEMA 的约定
-- 重复已记录的工作
+① 读 SCHEMA.md → ② 读 index.md → ③ 读 log.md 最后 20-30 条 → ④ 大型 wiki 搜当前主题。
+完成定向后才能操作。防止重复页面、遗漏交叉引用、违反约定。
 
 ## 两阶段编译
 
-摄入来源时必须遵循两阶段编译流程：
-
-### 阶段 1 — 概念提取
-
-**先读完全部来源**，从每个来源中提取实体和概念，所有提取完成后才开始写页面。
-这样代理能看到跨来源的概念重叠，避免为同一概念创建重复页面。
-
-### 阶段 2 — 页面生成
-
-基于提取的全局概念集合生成页面：
-- 出现在多个来源中的概念 → 合并为**一个页面**，所有来源列在 `sources` 字段
-- 只在一个来源中出现的概念 → 如果是该来源的核心主题才创建页面
-- 各段落末尾追加引用标记，指向实际贡献该段内容的来源文件
-
-两阶段分离消除了顺序依赖：阶段 1 的错误在写任何页面之前就能被发现，
-跨来源合并是确定性的，来源被删除后对应页面标记为 orphaned 而非静默消失。
+**阶段 1 — 概念提取：** 先读完全部来源，提取所有实体和概念。全部提取完再写页面。
+**阶段 2 — 页面生成：** 跨来源共享概念合并为一个页面，各段落追加引用标记。
 
 ## 初始化新 Wiki
 
-当用户要求创建/开始 wiki 时：
-
-1. 确定 wiki 路径（从 `WIKI_PATH` 环境变量，或询问用户；默认 `~/wiki`）
+1. 确定路径（`WIKI_PATH` 或询问用户，默认 `~/wiki`）
 2. 创建目录结构
-3. 询问用户 wiki 覆盖的领域 — 要具体
-4. 编写定制化的 `SCHEMA.md`（见下方模板）
-5. 编写初始 `index.md`
-6. 编写初始 `log.md`
-7. 确认 wiki 已就绪并建议首批来源
-
-告诉用户：SCHEMA.md 是活文档，后续使用中会根据实际需求持续调整——不需要一开始就写得很完善。
-
-### SCHEMA.md 模板
-
-根据用户领域调整：
-
-```markdown
-# Wiki Schema
-
-## 领域
-[这个 wiki 覆盖什么 — 例如 "AI/ML 研究"、"个人健康"、"创业情报"]
-
-## 约定
-- 文件名：小写、连字符、无空格（如 `transformer-architecture.md`）
-- 每个 wiki 页面以 YAML frontmatter 开头（见下方）
-- 使用 `[[wikilinks]]` 在页面间链接（每页至少 2 个出站链接）
-- 更新页面时始终更新 `updated` 日期
-- 每个新页面必须添加到 `index.md` 的正确分区下
-- 每个操作必须追加到 `log.md`
-
-## Frontmatter
-  ```yaml
-  ---
-  title: 页面标题
-  created: YYYY-MM-DD
-  updated: YYYY-MM-DD
-  kind: concept | entity | comparison | overview | query | summary
-  tags: [来自下方分类法]
-  sources: [source-name.md]
-  # 认识论元数据（可选但推荐）：
-  confidence: 0.82            # 0-1 之间，低于 0.5 标记待审查
-  provenanceState: extracted | merged | inferred | ambiguous
-  contradictedBy:             # 与此页面冲突的页面
-    - slug: other-page-slug
-  aliases:                    # 别名，使 [[别名]] 也能解析到本页
-    - MHA
-    - multi-head self-attention
-  ---
-  ```
-
-`sources` 使用 bare filename（相对于 raw/ 目录），不加 `raw/` 前缀。
-例如来自 `raw/articles/karpathy-llm-wiki.md` 的来源写 `karpathy-llm-wiki.md`。
-
-`confidence` 和 `provenanceState` 是可选但推荐的，用于观点密集或快速变化的主题。
-检查时会标记 confidence < 0.5 和有 contradictedBy 的页面供用户审查，防止弱声明
-悄悄固化为已接受的 wiki 事实。
-
-### provenanceState 含义
-
-- **extracted** — 直接从一个来源推导
-- **merged** — 综合自多个来源（多来源合并到同一页面时始终设为 merged）
-- **inferred** — LLM 推理出了来源中没有明确声明的结论
-- **ambiguous** — 来源给出了冲突信号，页面反映编译器的最佳综合
-
-### raw/ Frontmatter
-
-原始来源也有一个小 frontmatter 块，以便重新摄入时检测漂移：
-
-```yaml
----
-source_url: https://example.com/article   # 原始 URL（如适用）
-ingested: YYYY-MM-DD
-sha256: <原始内容正文的十六进制摘要>
----
-```
-
-`sha256:` 让未来的重新摄入可以跳过未更改的内容，并在更改时标记漂移。
-仅对正文计算（闭合 `---` 之后的所有内容），不包括 frontmatter 本身。
-
-## 标签分类法
-[为领域定义 10-20 个顶级标签。在使用新标签之前先在此添加。]
-
-AI/ML 示例：
-- 模型: model, architecture, benchmark, training
-- 人物/组织: person, company, lab, open-source
-- 技术: optimization, fine-tuning, inference, alignment, data
-- 元: comparison, timeline, controversy, prediction
-
-规则：页面上的每个标签都必须出现在此分类法中。如果需要新标签，
-先在此添加，然后使用。这防止标签蔓延。
-
-SCHEMA.md 中的分类法会随 wiki 使用而增长——代理可以提议新标签，
-但只有用户确认后才能写入。
-
-## 页面类型详解
-
-### concept
-独立的想法、技术或模式。这是默认类型，编译的最常见输出。
-解释"它是什么"并链接到相关概念。
-
-示例：`self-attention`、`knowledge-compilation`、`incremental-compilation`
-
-### entity
-具体的命名事物：人物、组织、产品、模型。关于特定实例而非抽象模式。
-携带唯一标识信息，通常向外链接到其实例化的概念。
-
-示例：`andrej-karpathy`、`gpt-4`、`anthropic`、`attention-is-all-you-need`
-
-### comparison
-两个或多个概念/实体的并排分析，沿共享维度比较。
-链接到所比较的每个主题，使用平行结构。
-
-示例：`rag-vs-llmwiki`、`transformer-vs-rnn`、`bm25-vs-dense-retrieval`
-
-### overview
-连接某个领域多个相关概念的地图页面。通常由 SCHEMA.md 种子生成，
-而非直接从来源提取。提供主题集群入口，向外链接到属于该领域的概念和实体页面。
-
-示例：`retrieval-augmented-generation-overview`、`attention-mechanisms-overview`
-
-## 页面阈值
-- **创建页面** 当一个实体/概念出现在 2+ 来源中 OR 是一个来源的核心主题
-- **添加到已有页面** 当来源提到已覆盖的内容
-- **不要创建页面** 用于附带提及、次要细节或领域之外的内容
-- **拆分页面** 当超过 ~200 行 — 拆分为子主题并交叉链接
-- **归档页面** 当内容完全被取代 — 移到 `_archive/`，从 index 移除
-
-## 引用
-
-### 段落级引用
-段落末尾追加 `^[source-file.md]` 指示该段内容来自哪个来源：
-
-```markdown
-知识编译指的是将知识库预处理为支持高效查询的目标语言的一系列技术。^[knowledge-compilation.md]
-
-两阶段编译流水线将概念提取与页面生成分离，使跨来源合并确定性地发生。^[architecture-notes.md]
-```
-
-文件名相对于 raw/ 目录，使用 bare filename（不加 `raw/` 前缀）。
-
-### Claim 级引用
-对具体数字、技术断言、直接引述，精确定位到行范围，两种等价语法：
-
-```markdown
-系统使用两阶段编译流水线。^[architecture-notes.md:42-58]
-
-系统使用两阶段编译流水线。^[architecture-notes.md#L42-L58]
-```
-
-Claim 级引用越多，来源追溯越精确。综合了 3+ 来源的页面必须使用引用标记。
-
-### 来源合并时的引用
-多来源合并到同一页面时，各段落继续指向实际贡献该段内容的来源文件：
-
-```markdown
-注意力机制计算值的加权和。^[attention-paper.md:12-18]
-
-多头注意力并行应用该机制 h 次。^[transformer-architecture.md:44-51]
-```
-
-## Wikilinks 和别名
-
-- 使用 `[[slug]]` 简单链接，或 `[[slug|显示标题]]` 管道语法
-- 管道语法在页面文件名与显示标题不同时保持链接稳定
-- 页面 frontmatter 中声明 `aliases` 字段，使 `[[别名]]` 也能解析到该页面：
-
-```yaml
----
-title: Multi-Head Attention
-aliases:
-  - multi-head self-attention
-  - MHA
----
-```
-
-### index.md 模板
-
-索引按类型分区。每个条目一行：wikilink + 摘要。
-
-```markdown
-# Wiki Index
-
-> 内容目录。每个 wiki 页面列在其类型下，附带一行摘要。
-> 先读这个来找到任何查询的相关页面。
-> 最后更新: YYYY-MM-DD | 总页面数: N
-
-## 实体
-<!-- 分区内按字母顺序 -->
-
-## 概念
-
-## 比较
-
-## 总览
-
-## 查询
-```
-
-**扩展规则：** 当任何分区超过 50 个条目时，按首字母或子领域拆分为子分区。
-当索引超过 200 个条目时，创建 `_meta/topic-map.md` 按主题分组页面以便更快导航。
-
-### log.md 模板
-
-```markdown
-# Wiki Log
-
-> 所有 wiki 操作的按时间顺序记录。只追加。
-> 格式：`## [YYYY-MM-DDThh:mm:ssZ] operation | description`
-> 操作：ingest, compile, update, query, lint, create, archive, delete
-> 当此文件超过 500 条时，轮转：重命名为 log-YYYY.md，重新开始。
-
-## [2026-06-05T09:14:02Z] ingest | Attention Is All You Need
-- 摄入来源: https://arxiv.org/abs/1706.03762
-- 页面: [[self-attention]], [[multi-head-attention]], [[transformer]]
-
-## [2026-06-05T09:15:30Z] query | What is multi-head attention?
-- 页面: [[multi-head-attention]], [[self-attention]]
-- 已归档: 是
-```
-
-因为只有标题以 `## [` 开头，可以用标准 shell 工具提取近期操作：
-```bash
-grep "^## \[" log.md | tail -5
-```
+3. 询问领域 — 要具体
+4. 写 SCHEMA.md（模板见 `templates/schema-template.md`）
+5. 写 index.md（模板见 `templates/index-template.md`）
+6. 写 log.md（模板见 `templates/log-template.md`）
+7. 告诉用户：SCHEMA.md 是活文档，不需要一开始就完美
 
 ## 核心操作
 
-### 1. Ingest（摄入）
+### Ingest（摄入）
 
-当用户提供来源（URL、文件、粘贴文本）时：
+① 捕获来源（URL→`raw/articles/`，PDF→`raw/papers/`，文本→适当子目录）
+   - 添加 raw frontmatter（source_url, ingested, sha256）
+   - 图片下载到 `raw/assets/`，替换远程 URL
+② 与用户讨论要点（自动化场景跳过）
+③ 阶段 1：从所有来源提取概念，跨来源共享概念标记为合并候选
+④ 阶段 2：写/更新页面 — 满足阈值才创建，交叉引用至少 2 个，引用标记段落来源
+⑤ 更新 index.md（按 kind 分区，字母顺序）+ log.md
+⑥ 报告变更
 
-① **捕获原始来源：**
-   - URL → 用网络工具获取 markdown，保存到 `raw/articles/`
-   - PDF → 保存到 `raw/papers/`
-   - 粘贴文本 → 保存到适当的 `raw/` 子目录
-   - 描述性命名：`raw/articles/karpathy-llm-wiki-2026.md`
-   - **添加 raw frontmatter**（`source_url`、`ingested`、正文的 `sha256`）。
-     重新摄入同一 URL 时：重新计算 sha256，与存储值比较 —
-     相同则跳过，不同则标记漂移并更新。
-   - **图片本地化：** 网页来源中的图片下载到 `raw/assets/`，
-     替换 markdown 中的远程 URL 为本地路径。
-     这让代理能直接查看图片，且不依赖会断的外链。
+单个来源可能触发 5-15 个页面更新。这是正常的增值效应。
 
-② **与用户讨论要点** — 什么有趣，什么对领域重要。（自动化/cron 场景跳过此步。）
+### Query（查询）
 
-③ **阶段 1：概念提取** — 从所有来源中提取实体、概念和比较关系。
-   全部提取完成后再进入阶段 2。跨来源共享的概念标记为合并候选。
+① 读 index.md 找相关页面 ② 搜索（search_files 或 BM25）③ 读页面 ④ 综合回答，引用 `[[页面]]`
+⑤ 有价值的答案归档到 queries/ 或 comparisons/（简单查找不归档）⑥ 更新 log.md
 
-④ **阶段 2：页面生成** — 基于提取结果写或更新 wiki 页面：
-   - **新实体/概念：** 仅在满足页面阈值时创建
-   - **已有页面：** 添加新信息，更新事实，更新 `updated` 日期。
-     当新信息与已有内容矛盾时，遵循冲突处理策略。
-   - **跨来源合并：** 多来源共享的概念合并为一个页面，
-     confidence 取最小值，provenanceState 设为 merged
-   - **交叉引用：** 每个页面必须通过 `[[wikilinks]]` 链接到至少 2 个其他页面
-   - **标签：** 仅使用 SCHEMA.md 分类法中的标签
-   - **引用：** 各段落末尾追加 `^[source.md]`，具体断言使用行范围 `^[source.md:42-58]`
-   - **置信度：** 设置 confidence 数值（0-1），观点密集/单来源声明 < 0.5
+### Lint（检查）
 
-⑤ **更新导航：**
-   - 将新页面添加到 `index.md` 的正确分区下（按 kind 分区），按字母顺序
-   - 更新 index 头部的 "总页面数" 和 "最后更新" 日期
-   - 追加到 `log.md`：`## [YYYY-MM-DDThh:mm:ssZ] ingest | Source Title`
-   - 在日志条目中列出每个创建或更新的页面（用 [[wikilinks]] 链接）
+① 孤儿页面（零入站链接）② 断裂 wikilinks ③ 索引完整性 ④ Frontmatter 验证
+⑤ 来源新鲜度（stale/orphaned）⑥ 矛盾页面 ⑦ 质量信号（confidence < 0.5）
+⑧ 引用验证 ⑨ 来源漂移（sha256 不匹配）⑩ 页面大小（> 200 行）⑪ 标签审计
+⑫ 日志轮转（> 500 条）⑬ 数据差距检测 ⑭ 建议新来源 ⑮ 报告发现 ⑯ 更新 log.md
 
-⑥ **报告变更** — 向用户列出每个创建或更新的文件。
+## 页面阈值
 
-单个来源可能触发 5-15 个 wiki 页面的更新。这是正常且理想的 — 这是增值效应。
-
-### 2. Query（查询）
-
-当用户提出关于 wiki 领域的问题时：
-
-① **读 `index.md`** 识别相关页面。
-② **搜索相关页面** — 小型 wiki 用 `search_files`，大型 wiki 用 BM25 搜索。
-③ **读相关页面**。
-④ **综合回答** 从编译的知识中。引用你借鉴的 wiki 页面：
-   "基于 [[page-a]] 和 [[page-b]]..."
-⑤ **归档有价值的答案** — 如果答案是一个实质性的比较、深度分析或新颖综合，
-   在 `queries/` 或 `comparisons/` 中创建页面。
-   不要归档简单的查找 — 只归档重新推导会很痛苦的答案。
-   Karpathy 的洞察：好的答案写回 wiki 是增值的核心机制——你的探索像摄入的来源一样不断增殖。
-⑥ **更新 log.md** 记录查询以及是否归档。
-
-### 3. Lint（检查）
-
-当用户要求检查、健康检查或审计 wiki 时：
-
-① **孤儿页面：** 找到没有来自其他页面的入站 `[[wikilinks]]` 的页面。
-   扫描所有 .md 文件，提取所有 `[[wikilinks]]`，构建入站链接映射。
-   零入站链接的页面是孤儿。
-
-② **断裂的 wikilinks：** 找到指向不存在页面的 `[[links]]`。
-
-③ **索引完整性：** 每个 wiki 页面应该出现在 `index.md` 中。
-   比较文件系统与索引条目。
-
-④ **Frontmatter 验证：** 每个 wiki 页面必须有所有必填字段
-   （title, created, updated, kind, tags, sources）。标签必须在分类法中。
-
-⑤ **来源新鲜度：**
-   - **Stale** — 页面记录的来源 sha256 与磁盘上文件不匹配
-   - **Orphaned** — 页面记录的所有来源已从 raw/ 中删除
-
-⑥ **矛盾：** 同一主题的页面有冲突声明。标记所有有 `contradictedBy` frontmatter 的页面供用户审查。
-
-⑦ **质量信号：** 列出 confidence < 0.5 的页面以及任何只引用单一来源
-   但没有设置 confidence 字段的页面 — 这些是寻找佐证或降级的候选。
-
-⑧ **引用验证：**
-   - `^[...]` 中的文件名在 raw/ 中不存在 → 错误
-   - 引用语法不可解析 → 错误
-   - 行范围不可能（起始行 0 或结束行 < 起始行）→ 错误
-   - 行范围超出源文件长度 → 警告
-
-⑨ **来源漂移：** 对于 `raw/` 中每个有 `sha256:` frontmatter 的文件，重新计算
-   哈希并标记不匹配。
-
-⑩ **页面大小：** 标记超过 200 行的页面 — 拆分候选。
-
-⑪ **标签审计：** 列出所有使用中的标签，标记任何不在 SCHEMA.md 分类法中的。
-
-⑫ **日志轮转：** 如果 log.md 超过 500 条，轮转它。
-
-⑬ **数据差距检测：** 识别内容覆盖不完整的区域——
-   被多个页面引用但缺少自身页面的概念、只有一个来源的 overview、
-   逻辑上应该存在但 wiki 中缺失的子主题。
-   标记可通过网络搜索填补的差距。
-
-⑭ **建议新来源：** 基于数据差距和已有主题，建议用户去寻找的新来源方向。
-   LLM 擅长发现"还缺什么"——这是让 wiki 持续增值的关键。
-
-⑮ **报告发现** 附带具体文件路径和建议操作，按严重性分组
-   （断链 > 引用错误 > 孤儿 > 来源漂移 > 矛盾页面 > 数据差距 > 陈旧内容 > 样式问题）。
-
-⑯ **追加到 log.md：** `## [YYYY-MM-DDThh:mm:ssZ] lint | N issues found`
+- 创建：2+ 来源 OR 核心主题
+- 不创建：附带提及、次要细节
+- 拆分：> 200 行
+- 归档：内容被取代 → `_archive/`
 
 ## 批量摄入
 
-一次摄入多个来源时，批量更新：
-1. 先读所有来源
-2. 识别所有来源中的所有实体和概念
-3. 检查所有已有页面（一次搜索，不是 N 次）
-4. 一次性创建/更新页面（避免冗余更新）
-5. 最后一次性更新 index.md
-6. 写一个覆盖整个批次的日志条目
+先读全部来源 → 一次性提取概念 → 一次性创建/更新页面 → 一次性更新 index → 一条日志
 
 ## 归档
 
-当内容完全被取代或领域范围变化时：
-1. 创建 `_archive/` 目录（如果不存在）
-2. 将页面移到 `_archive/` 并保留原始路径（如 `_archive/entities/old-page.md`）
-3. 从 `index.md` 移除
-4. 更新任何链接到它的页面 — 将 wikilink 替换为纯文本 + "(已归档)"
-5. 记录归档操作
+移到 `_archive/`，从 index 移除，wikilink 改为纯文本 + "(已归档)"，记录操作
 
 ## 常见陷阱
 
-- **永远不要修改 raw/ 中的文件** — 来源是不可变的。更正写在 wiki 页面中。
-- **总是先定向** — 在新会话中做任何操作之前读 SCHEMA + index + 最近日志。
-  跳过这步会导致重复和遗漏交叉引用。
-- **必须两阶段编译** — 先提取全部概念再写页面。逐个来源顺序处理会导致重复页面和遗漏合并。
-- **总是更新 index.md 和 log.md** — 跳过这步会让 wiki 退化。这些是导航骨架。
-- **不要为附带提及创建页面** — 遵循页面阈值。在脚注中出现一次的名字不值得创建实体页面。
-- **不要创建没有交叉引用的页面** — 孤立页面是不可见的。每个页面必须链接到至少 2 个其他页面。
-- **Frontmatter 是必需的** — 它启用搜索、过滤和陈旧检测。
-- **标签必须来自分类法** — 自由格式标签会退化为噪声。先在 SCHEMA.md 添加新标签，然后使用。
-- **保持页面可扫描** — 一个 wiki 页面应该可以在 30 秒内读完。超过 200 行的页面拆分。
-- **批量更新前先询问** — 如果一次摄入会影响 10+ 个已有页面，先与用户确认范围。
-- **轮转日志** — log.md 超过 500 条时，重命名为 `log-YYYY.md` 并重新开始。
-- **显式处理矛盾** — 不要静默覆盖。记录两个声明并标注日期，在 frontmatter 中标记 contradictedBy。
-- **多来源合并调 frontmatter** — confidence 取最小值，provenanceState 设 merged，contradictedBy 取去重并集。
-- **使用 claim 级引用** — 对具体数字和技术断言，用 `^[file.md:42-58]` 精确到行范围。
-- **sources 用 bare filename** — `sources: [article-name.md]`，不要写 `sources: [raw/articles/article-name.md]`。
-- **图片要本地化** — 不要依赖远程 URL，下载到 raw/assets/ 替换为本地路径。
-- **SCHEMA.md 要随 wiki 进化** — 初始版本不需要完美，在使用中发现不足时更新它。
-- **小 wiki 不要装 MCP** — wiki < 100 页面时 index.md + search_files 足够，不要为了搜索工具增加初始复杂度。
+- **永远不要修改 raw/** — 来源不可变，更正写在 wiki 页面
+- **总是先定向** — 跳过会导致重复和遗漏交叉引用
+- **必须两阶段编译** — 逐个来源处理会导致重复页面
+- **总是更新 index + log** — 跳过会让 wiki 退化
+- **不要为附带提及创建页面** — 遵循阈值
+- **每个页面至少 2 个出站链接** — 孤立页面不可见
+- **Frontmatter 必需** — 启用搜索、过滤、陈旧检测
+- **标签必须来自分类法** — 先在 SCHEMA 添加再使用
+- **显式处理矛盾** — 不要静默覆盖，标记 contradictedBy
+- **多来源合并调 frontmatter** — confidence 取最小值，provenanceState 设 merged
+- **sources 用 bare filename** — 不加 `raw/` 前缀
+- **图片要本地化** — 下载到 raw/assets/ 替换远程 URL
+- **小 wiki 不要装 MCP** — < 100 页面时 index.md + search_files 足够
+
+## 模板和参考
+
+- SCHEMA.md 模板：`templates/schema-template.md`
+- index.md 模板：`templates/index-template.md`
+- log.md 模板：`templates/log-template.md`
+- 页面类型详解：`references/page-types.md`
+- 引用语法详解：`references/citations.md`
+- BM25 算法详解：`references/bm25.md`
