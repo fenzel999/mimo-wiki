@@ -16,9 +16,11 @@
 
 ## 安装
 
-### 项目级（当前目录）
+### 项目级
 
-**Windows PowerShell：**
+当前目录，只影响这个项目。
+
+**Windows：**
 ```powershell
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex
 ```
@@ -28,11 +30,11 @@ irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | i
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
 ```
 
-### 全局（所有项目可用）
+### 全局
 
-安装到 `~/.config/mimocode/`
+`~/.config/mimocode/`，所有项目可用。
 
-**Windows PowerShell：**
+**Windows：**
 ```powershell
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.ps1 | iex
 ```
@@ -42,21 +44,29 @@ irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.sh | bash
 ```
 
-### 卸载
+## 卸载
 
-**项目级：**
+### 项目级
+
+**Windows：**
 ```powershell
-# Windows
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.ps1 | iex
-# macOS / Linux
+```
+
+**macOS / Linux：**
+```bash
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash
 ```
 
-**全局：**
+### 全局
+
+**Windows：**
 ```powershell
-# Windows
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.ps1 | iex
-# macOS / Linux
+```
+
+**macOS / Linux：**
+```bash
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.sh | bash
 ```
 
