@@ -47,13 +47,13 @@ wiki/
 | 规模 | 方式 |
 |------|------|
 | < 100 页面 | 读 index.md + `search_files` 关键词 |
-| 100+ 页面 | BM25 搜索（MCP `obsidian_search_notes` mode=`omnisearch`） |
+| 100+ 页面 | BM25 搜索（Python 脚本，见 `references/bm25.md`） |
 
-BM25 算法详情见 `references/bm25.md`。
+BM25 搜索依赖 `pip install rank_bm25 jieba`，代理直接在 wiki 目录上执行 Python 脚本，无需外部服务。
 
 ## 恢复已有 Wiki（每次会话必做）
 
-① 读 SCHEMA.md → ② 读 index.md → ③ 读 log.md 最后 20-30 条 → ④ 大型 wiki 搜当前主题。
+① 读 SCHEMA.md → ② 读 index.md → ③ 读 log.md 最后 20-30 条 → ④ 大型 wiki 用 BM25 搜当前主题。
 完成定向后才能操作。防止重复页面、遗漏交叉引用、违反约定。
 
 ## 两阶段编译
@@ -127,7 +127,6 @@ BM25 算法详情见 `references/bm25.md`。
 - **多来源合并调 frontmatter** — confidence 取最小值，provenanceState 设 merged
 - **sources 用 bare filename** — 不加 `raw/` 前缀
 - **图片要本地化** — 下载到 raw/assets/ 替换远程 URL
-- **小 wiki 不要装 MCP** — < 100 页面时 index.md + search_files 足够
 
 ## 模板和参考
 
@@ -136,4 +135,4 @@ BM25 算法详情见 `references/bm25.md`。
 - log.md 模板：`templates/log-template.md`
 - 页面类型详解：`references/page-types.md`
 - 引用语法详解：`references/citations.md`
-- BM25 算法详解：`references/bm25.md`
+- BM25 搜索实现：`references/bm25.md`
