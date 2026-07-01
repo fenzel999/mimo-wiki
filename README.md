@@ -1,111 +1,33 @@
 # mimo-wiki
 
-为 MiMo Code 提供 Karpathy LLM Wiki 模式的全局规则和技能。
+Karpathy LLM Wiki 模式的全局规则和技能，为 MiMo Code 提供。
 
 基于 [Andrej Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)，
 让你的 AI 编程助手像维护知识库一样持续积累和交叉引用知识，而非每次从零检索。
+
+## 为什么用 Wiki 模式
+
+传统方式：每次问 AI，它从零检索、从零综合。问三次同一个话题，它做三次重复工作。
+
+Wiki 模式：一次编译知识，持续更新。交叉引用已经存在，矛盾已被标记，综合分析反映所有已摄入的内容。越用越强。
 
 ## 仓库结构
 
 ```
 mimo-wiki/
-├── AGENTS.md                    # 全局规则（通过网络远程加载到 MiMo Code）
+├── AGENTS.md                    # 全局规则 — Wiki 模式的约束条件
 ├── skills/
 │   └── llm-wiki/
-│       └── SKILL.md             # LLM Wiki 技能（复制到本地或远程加载）
+│       └── SKILL.md             # 操作指南 — 完整模板、步骤、陷阱
 └── README.md                    # 本文件
 ```
 
-## 它是怎么工作的
-
-| 文件 | 作用 | 加载方式 |
-|------|------|----------|
-| `AGENTS.md` | Wiki 模式的规则约束，始终在上下文中 | 远程 URL 自动拉取 |
-| `skills/llm-wiki/SKILL.md` | 完整的操作模板和步骤，按需加载 | 复制到本地目录 或 远程 URL |
-
-AGENTS.md 始终在上下文中，所以保持精简（只写规则）；SKILL.md 在代理需要时才加载，
-包含完整的 SCHEMA 模板、摄入/查询/检查的逐步步骤和常见陷阱。
-
-## 配置步骤
-
-### 第 1 步：推送仓库到 GitHub
-
-将本仓库推送到你的 GitHub，确保为公开仓库（public），这样远程 URL 才能访问。
-
-### 第 2 步：配置全局规则（远程加载 AGENTS.md）
-
-编辑你的 MiMo Code 全局配置文件：
-
-- **Windows：** `C:\Users\<你的用户名>\.config\mimocode\mimocode.json`
-- **Linux/macOS：** `~/.config/mimocode/mimocode.json`
-
-写入以下内容，将 URL 中的 `<你的用户名>` 替换为你的 GitHub 用户名：
-
-```json
-{
-  "$schema": "https://mimo.xiaomi.com/mimocode/config.json",
-  "instructions": [
-    "https://raw.githubusercontent.com/<你的用户名>/mimo-wiki/main/AGENTS.md"
-  ]
-}
-```
-
-> 远程指令的获取超时时间为 5 秒。所有指令文件都会与项目中的 AGENTS.md 合并。
-
-### 第 3 步：安装技能
-
-**方式 A — 复制到本地（推荐）**
-
-将仓库中的 `skills/llm-wiki/SKILL.md` 复制到全局技能目录：
-
-- **Windows：** `C:\Users\<你的用户名>\.config\mimocode\skills\llm-wiki\SKILL.md`
-- **Linux/macOS：** `~/.config/mimocode/skills/llm-wiki/SKILL.md`
-
-也可以放在项目级别的技能目录：`.mimocode/skills/llm-wiki/SKILL.md`
-
-**方式 B — 远程加载**
-
-在 `mimocode.json` 中添加 `skills.urls`，免去手动复制：
-
-```json
-{
-  "$schema": "https://mimo.xiaomi.com/mimocode/config.json",
-  "instructions": [
-    "https://raw.githubusercontent.com/<你的用户名>/mimo-wiki/main/AGENTS.md"
-  ],
-  "skills": {
-    "urls": [
-      "https://raw.githubusercontent.com/<你的用户名>/mimo-wiki/main/skills/llm-wiki/SKILL.md"
-    ]
-  }
-}
-```
-
-MiMo Code 搜索技能的目录：
-
-| 位置 | 说明 |
-|------|------|
-| `~/.config/mimocode/skills/**/SKILL.md` | 全局技能 |
-| `.mimocode/skills/**/SKILL.md` | 项目级技能 |
-| `~/.claude/skills/**/SKILL.md` | 兼容目录（全局） |
-| `.claude/skills/**/SKILL.md` | 兼容目录（项目级） |
-| `.agents/`, `.codex/`, `.opencode/` | 其他兼容目录 |
-
-### 第 4 步：设置 Wiki 路径（可选）
-
-通过环境变量 `WIKI_PATH` 指定 wiki 目录，不设置则默认 `~/wiki`：
-
-```bash
-# Linux/macOS
-export WIKI_PATH=~/wiki
-
-# Windows (PowerShell)
-$env:WIKI_PATH = "$HOME\wiki"
-```
+- **AGENTS.md** — 始终在上下文中，所以保持精简，只写规则
+- **SKILL.md** — 按需加载，包含完整的操作模板和步骤
 
 ## 使用方法
 
-在 MiMo Code 中正常对话即可，例如：
+在 MiMo Code 中正常对话即可：
 
 | 你说的话 | 会发生什么 |
 |---------|-----------|
@@ -157,8 +79,6 @@ Wiki 目录开箱即用作为 Obsidian vault：
 - 将 Obsidian 的附件文件夹设置为 `raw/assets/`
 - 在 Obsidian 设置中启用 "Wikilinks"（通常默认开启）
 - 安装 Dataview 插件以执行查询，如 `TABLE tags FROM "entities" WHERE contains(tags, "company")`
-
-如果你同时使用 Obsidian 技能，将 `OBSIDIAN_VAULT_PATH` 设置为 wiki 路径即可。
 
 ### 无界面同步（Obsidian Headless）
 
@@ -215,42 +135,11 @@ sudo loginctl enable-linger $USER
 
 ## 相关工具
 
-[llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler) 是一个 Node.js CLI，
-将来源编译成概念 wiki，灵感同样来自 Karpathy。它兼容 Obsidian，
-想要定时/CLI 驱动的编译流水线的用户可以指向同一个 vault。
+[llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler) — Node.js CLI，将来源编译成概念 wiki，灵感同样来自 Karpathy。兼容 Obsidian，适合想要定时/CLI 驱动的编译流水线。
 
-权衡：它接管页面生成（替代代理对页面创建的判断），针对小语料调优。
-当你需要代理在循环中策展时用 mimo-wiki 技能；当你想要批量编译来源目录时用 llm-wiki-compiler。
+权衡：它接管页面生成（替代代理对页面创建的判断），针对小语料调优。需要代理在循环中策展时用 mimo-wiki 技能；想要批量编译来源目录时用 llm-wiki-compiler。
 
-## 更新流程
-
-修改了仓库中的文件后：
-
-1. **AGENTS.md** — 推送到 GitHub 即可，下次启动 MiMo Code 时自动从远程拉取最新版本
-2. **SKILL.md** — 推送到 GitHub 后，需重新复制到本地技能目录（如果用方式 A）；用方式 B 则自动拉取
-
-## 权限配置（可选）
-
-在 `mimocode.json` 中控制代理对技能的访问权限：
-
-```json
-{
-  "permission": {
-    "skill": {
-      "*": "allow",
-      "llm-wiki": "allow"
-    }
-  }
-}
-```
-
-| 权限 | 行为 |
-|------|------|
-| `allow` | 技能立即加载 |
-| `deny` | 对代理隐藏技能 |
-| `ask` | 加载前提示用户确认 |
-
-## 参考文档
+## 参考
 
 - [MiMo Code 规则文档](https://mimo.xiaomi.com/zh/mimocode/rules)
 - [MiMo Code 技能文档](https://mimo.xiaomi.com/zh/mimocode/skills)
