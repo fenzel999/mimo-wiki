@@ -49,8 +49,100 @@ wiki/
 
 ## 搜索方式
 
-- **小型 wiki（< 100 页面）：** 读 `index.md` 找相关页面，或用 `search_files` 搜关键词
-- **大型 wiki（100+ 页面）：** 用 `search_files` 搜索所有 `.md` 文件，或用 MCP 工具（如果配置了）
+wiki 的搜索能力分三层，按 wiki 规模选择：
+
+### 第 1 层：index.md（任何规模可用）
+
+读 `index.md`，每个页面有一行摘要。适合：
+- 快速浏览有哪些页面
+- 按类型（entity/concept/comparison/overview）找页面
+- 已知要找什么类型的页面
+
+### 第 2 层：关键词搜索（< 100 页面）
+
+用 `search_files` 搜索所有 `.md` 文件：
+- 搜页面标题、内容、标签
+- 适合精确查找某个术语出现在哪些页面
+
+### 第 3 层：BM25 搜索（100+ 页面，通过 MCP）
+
+当 wiki 增长到 100+ 页面，index.md + 关键词搜索就不够用了。
+此时通过 Obsidian MCP Server 的 `obsidian_search_notes` 工具使用 BM25 搜索。
+
+#### BM25 算法简介
+
+BM25（Best Matching 25）是信息检索领域的经典排序算法，Elasticsearch 的默认相关性算法。
+核心思想：一个词在文档中出现频率越高、在整个集合中出现频率越低，该文档与查询越相关。
+
+**BM25 公式：**
+
+```
+score(D, Q) = Σ IDF(qi) · (f(qi, D) · (k1 + 1)) / (f(qi, D) + k1 · (1 - b + b · |D| / avgdl))
+```
+
+其中：
+- `qi` = 查询中的第 i 个词
+- `f(qi, D)` = 词 qi 在文档 D 中的出现频率
+- `|D|` = 文档 D 的长度（词数）
+- `avgdl` = 所有文档的平均长度
+- `k1` = 词频饱和参数（通常 1.2-2.0），控制词频增长的收益递减
+- `b` = 文档长度归一化参数（通常 0.75），控制长文档的惩罚程度
+- `IDF(qi)` = 逆文档频率 = log((N - n(qi) + 0.5) / (n(qi) + 0.5) + 1)
+  - N = 总文档数
+  - n(qi) = 包含词 qi 的文档数
+
+**为什么 BM25 适合 wiki：**
+- **词频饱和** — 一个词出现 10 次 vs 20 次，相关性差距很小（避免长文档霸榜）
+- **文档长度归一化** — 短页面（entity）和长页面（overview）公平竞争
+- **逆文档频率** — "transformer" 比 "the" 权重高得多（罕见词更有区分度）
+- **无需训练** — 纯统计方法，wiki 内容变化时无需重新训练模型
+
+#### 通过 MCP 调用 BM25
+
+需要安装：
+1. **Obsidian MCP Server** — [cyanheads/obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server)
+2. **Omnisearch 插件** — [obsidian-omnisearch](https://github.com/scambier/obsidian-omnisearch)（提供 BM25 引擎）
+3. **Local REST API 插件** — MCP Server 的通信桥梁
+
+安装后，通过 MCP 工具 `obsidian_search_notes` 调用：
+
+```json
+{
+  "name": "obsidian_search_notes",
+  "arguments": {
+    "query": "transformer attention mechanism",
+    "mode": "omnisearch"
+  }
+}
+```
+
+三种搜索模式：
+
+| mode | 算法 | 速度 | 质量 | 适用场景 |
+|------|------|------|------|---------|
+| `text` | 子串匹配 | 最快 | 基础 | 快速找关键词 |
+| `jsonlogic` | 结构化过滤 | 中等 | 精确 | 按 frontmatter/tags/路径筛选 |
+| `omnisearch` | **BM25** | 较慢 | **最好** | 语义相关搜索、拼写容错 |
+
+#### BM25 搜索特性
+
+Omnisearch 的 BM25 实现支持：
+- **引号短语** — `"multi-head attention"` 精确匹配短语
+- **排除语法** — `attention -self` 排除包含 "self" 的结果
+- **路径过滤** — `path:concepts transformer` 只搜 concepts 目录
+- **扩展名过滤** — `ext:md` 只搜 markdown 文件
+- **拼写容错** — 输错几个字母也能找到
+- **PDF/OCR** — 安装 Text Extractor 插件后可搜索 PDF 和图片中的文字
+
+#### 何时用哪种搜索
+
+| 场景 | 推荐方式 |
+|------|---------|
+| 定向（新会话开始） | 读 index.md |
+| 找某个具体页面 | `search_files` 关键词 |
+| "这个概念在哪出现过" | BM25（omnisearch 模式） |
+| 按标签/类型/日期筛选 | jsonlogic 模式 |
+| wiki < 100 页面 | index.md + search_files 足够 |
 
 ## 恢复已有 Wiki（关键 — 每次会话都要做）
 
@@ -59,7 +151,11 @@ wiki/
 ① **读 `SCHEMA.md`** — 了解领域、约定和标签分类法。
 ② **读 `index.md`** — 了解有哪些页面和摘要。
 ③ **读 `log.md` 最后 20-30 条** — 了解近期活动。
-④ **大型 wiki** 用 `search_files` 搜索当前主题相关页面。
+④ **大型 wiki（100+ 页面）** 用 BM25 搜索当前主题相关页面：
+   ```
+   obsidian_search_notes(query="当前主题", mode="omnisearch")
+   ```
+   或用 `search_files` 搜关键词。
 
 只有完成定向后才能摄入、查询或检查。这防止：
 - 为已存在的实体创建重复页面
@@ -362,7 +458,7 @@ grep "^## \[" log.md | tail -5
 当用户提出关于 wiki 领域的问题时：
 
 ① **读 `index.md`** 识别相关页面。
-② **搜索相关页面** — 用 `search_files` 搜关键词，或读 index.md 找匹配的 wikilinks。
+② **搜索相关页面** — 小型 wiki 用 `search_files`，大型 wiki 用 BM25 搜索。
 ③ **读相关页面**。
 ④ **综合回答** 从编译的知识中。引用你借鉴的 wiki 页面：
    "基于 [[page-a]] 和 [[page-b]]..."
@@ -464,3 +560,4 @@ grep "^## \[" log.md | tail -5
 - **sources 用 bare filename** — `sources: [article-name.md]`，不要写 `sources: [raw/articles/article-name.md]`。
 - **图片要本地化** — 不要依赖远程 URL，下载到 raw/assets/ 替换为本地路径。
 - **SCHEMA.md 要随 wiki 进化** — 初始版本不需要完美，在使用中发现不足时更新它。
+- **小 wiki 不要装 MCP** — wiki < 100 页面时 index.md + search_files 足够，不要为了搜索工具增加初始复杂度。
