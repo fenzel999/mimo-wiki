@@ -11,6 +11,16 @@ Karpathy LLM Wiki 模式的全局规则和技能，为 MiMo Code 提供。
 
 Wiki 模式：一次编译知识，持续更新。交叉引用已经存在，矛盾已被标记，综合分析反映所有已摄入的内容。越用越强。
 
+|  | 传统 RAG | Wiki 模式 |
+|--|---------|-----------|
+| 主要产物 | 原始分块 | 编译后的 wiki 页面 |
+| 查询行为 | 每次重构上下文 | 复用已编译的结构 |
+| 知识增长 | 通常临时的 | 通过页面和归档查询不断增殖 |
+| 跨来源概念 | 重复分块在检索时竞争 | 合并到一个共享页面 |
+| 来源追溯 | 分块引用 | 段落级和 claim 级行范围引用 |
+| 新鲜度 | 通常无 | Stale/Orphaned 内置检测 |
+| 适用场景 | 噪声数据的临时检索 | 需要保存、可审查、可追溯的持久知识 |
+
 ## 仓库结构
 
 ```
@@ -32,9 +42,9 @@ mimo-wiki/
 | 你说的话 | 会发生什么 |
 |---------|-----------|
 | "帮我创建一个新的 LLM Wiki，领域是 AI/ML 研究" | 初始化 wiki 目录结构、SCHEMA.md、index.md、log.md |
-| "帮我把这篇文章摄入 wiki: https://..." | 抓取内容→存 raw/→创建/更新实体和概念页面→更新索引和日志 |
+| "帮我把这篇文章摄入 wiki: https://..." | 抓取内容→概念提取→页面生成→更新索引和日志 |
 | "Transformer 和 RNN 的主要区别？" | 读 index→找相关页面→综合回答→引用 [[页面]] |
-| "帮我检查 wiki 健康状况" | 扫描孤儿页面、断链、陈旧内容、矛盾等 |
+| "帮我检查 wiki 健康状况" | 扫描孤儿页面、断链、引用错误、陈旧内容、矛盾等 |
 
 ### Wiki 目录结构
 
@@ -53,17 +63,54 @@ wiki/
 ├── entities/           # 实体页面（人物、组织、产品、模型）
 ├── concepts/           # 概念页面
 ├── comparisons/        # 比较页面
+├── overviews/          # 领域地图页面
 └── queries/            # 归档的查询结果
 ```
 
 Wiki 就是一个 markdown 文件目录 — 你可以在 Obsidian、VS Code 或任何编辑器中打开。
 不需要数据库，不需要特殊工具。
 
+### 两阶段编译
+
+摄入来源时分两个阶段：
+
+1. **概念提取** — 先读完全部来源，提取所有实体和概念，跨来源重叠概念标记为合并候选
+2. **页面生成** — 基于全局概念集合生成页面，共享概念合并为一个页面
+
+这消除了顺序依赖：先看完所有来源再写页面，避免重复和遗漏合并。
+
+### 来源新鲜度
+
+wiki 自动追踪每个页面依赖的来源文件及其内容哈希：
+
+- **Stale** — 来源文件内容已变化，页面需要重新编译
+- **Orphaned** — 来源文件已删除，页面成为孤儿
+
+检查时会报告这些状态，帮你保持 wiki 与来源同步。
+
+### 四种页面类型
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| **concept** | 独立的想法、技术或模式 | self-attention, knowledge-compilation |
+| **entity** | 具体的命名事物 | andrej-karpathy, gpt-4 |
+| **comparison** | 两个或多个概念的并排分析 | transformer-vs-rnn |
+| **overview** | 连接某领域多个相关概念的地图 | attention-mechanisms-overview |
+
+### 引用追溯
+
+每段内容都能追溯到具体来源，两种精度：
+
+- **段落级：** `^[knowledge-compilation.md]` — 该段来自哪个文件
+- **Claim 级：** `^[architecture-notes.md:42-58]` — 精确到来源文件的行范围
+
+检查时会验证引用：文件是否存在、行范围是否合理、引用覆盖率等。
+
 ### 三种核心操作
 
-1. **摄入 (Ingest)** — 把来源（URL、PDF、文本）集成到 wiki：存原始文件→检查已有页面→创建/更新 wiki 页面→更新索引和日志
+1. **摄入 (Ingest)** — 把来源（URL、PDF、文本）集成到 wiki：概念提取→页面生成→更新索引和日志
 2. **查询 (Query)** — 基于 wiki 编译的知识回答问题，引用来源页面，有价值的答案归档
-3. **检查 (Lint)** — 扫描孤儿页面、断链、索引完整性、陈旧内容、矛盾、来源漂移等
+3. **检查 (Lint)** — 扫描孤儿页面、断链、引用错误、来源新鲜度、矛盾、陈旧内容等
 
 ## Obsidian 集成
 
@@ -145,3 +192,4 @@ sudo loginctl enable-linger $USER
 - [MiMo Code 技能文档](https://mimo.xiaomi.com/zh/mimocode/skills)
 - [Karpathy LLM Wiki 原始 Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 - [llm-wiki-compiler](https://github.com/atomicmemory/llm-wiki-compiler)
+- [llmwiki 文档](https://llmwiki.atomicstrata.ai)

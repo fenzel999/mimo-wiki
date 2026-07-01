@@ -39,11 +39,12 @@ wiki/
 ├── entities/           # 第 2 层：实体页面（人物、组织、产品、模型）
 ├── concepts/           # 第 2 层：概念/主题页面
 ├── comparisons/        # 第 2 层：并排分析
+├── overviews/          # 第 2 层：领域地图页面
 └── queries/            # 第 2 层：值得保留的已归档查询结果
 ```
 
 1. **原始来源层 (raw/)** — 不可变。代理读取但从不修改。
-2. **Wiki 层 (entities/, concepts/, comparisons/, queries/)** — 代理拥有的 markdown 文件，由代理创建、更新和交叉引用。
+2. **Wiki 层 (entities/, concepts/, comparisons/, overviews/, queries/)** — 代理拥有的 markdown 文件，由代理创建、更新和交叉引用。
 3. **模式层 (SCHEMA.md)** — 定义结构、约定和标签分类法。
 
 ## 恢复已有 Wiki（关键 — 每次会话都要做）
@@ -68,6 +69,25 @@ read_file "$WIKI/log.md" offset=<last 30 lines>
 - 重复已记录的工作
 
 对于大型 wiki（100+ 页面），在创建任何新内容前还要搜索当前主题。
+
+## 两阶段编译
+
+摄入来源时必须遵循两阶段编译流程：
+
+### 阶段 1 — 概念提取
+
+**先读完全部来源**，从每个来源中提取实体和概念，所有提取完成后才开始写页面。
+这样代理能看到跨来源的概念重叠，避免为同一概念创建重复页面。
+
+### 阶段 2 — 页面生成
+
+基于提取的全局概念集合生成页面：
+- 出现在多个来源中的概念 → 合并为**一个页面**，所有来源列在 `sources` 字段
+- 只在一个来源中出现的概念 → 如果是该来源的核心主题才创建页面
+- 各段落末尾追加引用标记，指向实际贡献该段内容的来源文件
+
+两阶段分离消除了顺序依赖：阶段 1 的错误在写任何页面之前就能被发现，
+跨来源合并是确定性的，来源被删除后对应页面标记为 orphaned 而非静默消失。
 
 ## 初始化新 Wiki
 
@@ -98,9 +118,6 @@ read_file "$WIKI/log.md" offset=<last 30 lines>
 - 更新页面时始终更新 `updated` 日期
 - 每个新页面必须添加到 `index.md` 的正确分区下
 - 每个操作必须追加到 `log.md`
-- **来源标记：** 在综合 3+ 来源的页面上，在段落末尾追加 `^[raw/articles/source-file.md]`
-  标记来自特定来源的声明。这让读者可以追溯每个声明而无需重读整个原始文件。
-  在单来源页面上可选，因为 `sources:` frontmatter 已足够。
 
 ## Frontmatter
   ```yaml
@@ -108,19 +125,30 @@ read_file "$WIKI/log.md" offset=<last 30 lines>
   title: 页面标题
   created: YYYY-MM-DD
   updated: YYYY-MM-DD
-  type: entity | concept | comparison | query | summary
+  kind: concept | entity | comparison | overview | query | summary
   tags: [来自下方分类法]
   sources: [raw/articles/source-name.md]
-  # 可选质量信号：
-  confidence: high | medium | low        # 声明的支持程度
-  contested: true                        # 页面有未解决的矛盾时设置
-  contradictions: [other-page-slug]      # 与此页面冲突的页面
+  # 认识论元数据（可选但推荐）：
+  confidence: 0.82            # 0-1 之间，低于 0.5 标记待审查
+  provenanceState: extracted | merged | inferred | ambiguous
+  contradictedBy:             # 与此页面冲突的页面
+    - slug: other-page-slug
+  aliases:                    # 别名，使 [[别名]] 也能解析到本页
+    - MHA
+    - multi-head self-attention
   ---
   ```
 
-`confidence` 和 `contested` 是可选但推荐的，用于观点密集或快速变化的主题。
-检查时会标记 `contested: true` 和 `confidence: low` 的页面供用户审查，防止弱声明
+`confidence` 和 `provenanceState` 是可选但推荐的，用于观点密集或快速变化的主题。
+检查时会标记 confidence < 0.5 和有 contradictedBy 的页面供用户审查，防止弱声明
 悄悄固化为已接受的 wiki 事实。
+
+### provenanceState 含义
+
+- **extracted** — 直接从一个来源推导
+- **merged** — 综合自多个来源（多来源合并到同一页面时始终设为 merged）
+- **inferred** — LLM 推理出了来源中没有明确声明的结论
+- **ambiguous** — 来源给出了冲突信号，页面反映编译器的最佳综合
 
 ### raw/ Frontmatter
 
@@ -149,6 +177,32 @@ AI/ML 示例：
 规则：页面上的每个标签都必须出现在此分类法中。如果需要新标签，
 先在此添加，然后使用。这防止标签蔓延。
 
+## 页面类型详解
+
+### concept
+独立的想法、技术或模式。这是默认类型，编译的最常见输出。
+解释"它是什么"并链接到相关概念。
+
+示例：`self-attention`、`knowledge-compilation`、`incremental-compilation`
+
+### entity
+具体的命名事物：人物、组织、产品、模型。关于特定实例而非抽象模式。
+携带唯一标识信息，通常向外链接到其实例化的概念。
+
+示例：`andrej-karpathy`、`gpt-4`、`anthropic`、`attention-is-all-you-need`
+
+### comparison
+两个或多个概念/实体的并排分析，沿共享维度比较。
+链接到所比较的每个主题，使用平行结构。
+
+示例：`rag-vs-llmwiki`、`transformer-vs-rnn`、`bm25-vs-dense-retrieval`
+
+### overview
+连接某个领域多个相关概念的地图页面。通常由 SCHEMA.md 种子生成，
+而非直接从来源提取。提供主题集群入口，向外链接到属于该领域的概念和实体页面。
+
+示例：`retrieval-augmented-generation-overview`、`attention-mechanisms-overview`
+
 ## 页面阈值
 - **创建页面** 当一个实体/概念出现在 2+ 来源中 OR 是一个来源的核心主题
 - **添加到已有页面** 当来源提到已覆盖的内容
@@ -156,34 +210,55 @@ AI/ML 示例：
 - **拆分页面** 当超过 ~200 行 — 拆分为子主题并交叉链接
 - **归档页面** 当内容完全被取代 — 移到 `_archive/`，从 index 移除
 
-## 实体页面
-每个值得注意的实体一个页面。包括：
-- 概述 / 它是什么
-- 关键事实和日期
-- 与其他实体的关系（[[wikilinks]]）
-- 来源引用
+## 引用
 
-## 概念页面
-每个概念或主题一个页面。包括：
-- 定义 / 解释
-- 当前知识状态
-- 开放问题或争论
-- 相关概念（[[wikilinks]]）
+### 段落级引用
+段落末尾追加 `^[source-file.md]` 指示该段内容来自哪个来源：
 
-## 比较页面
-并排分析。包括：
-- 比较什么以及为什么
-- 比较维度（优先使用表格格式）
-- 结论或综合
-- 来源
+```markdown
+知识编译指的是将知识库预处理为支持高效查询的目标语言的一系列技术。^[knowledge-compilation.md]
 
-## 更新策略
-当新信息与已有内容冲突时：
-1. 检查日期 — 较新的来源通常取代较旧的
-2. 如果确实矛盾，记录两个立场并标注日期和来源
-3. 在 frontmatter 中标记矛盾：`contradictions: [page-name]`
-4. 在检查报告中标记供用户审查
+两阶段编译流水线将概念提取与页面生成分离，使跨来源合并确定性地发生。^[architecture-notes.md]
 ```
+
+文件名相对于 raw/ 目录，使用 bare filename（不加 raw/ 前缀）。
+
+### Claim 级引用
+对具体数字、技术断言、直接引述，精确定位到行范围，两种等价语法：
+
+```markdown
+系统使用两阶段编译流水线。^[architecture-notes.md:42-58]
+
+系统使用两阶段编译流水线。^[architecture-notes.md#L42-L58]
+```
+
+Claim 级引用越多，来源追溯越精确。综合了 3+ 来源的页面必须使用引用标记。
+
+### 来源合并时的引用
+多来源合并到同一页面时，各段落继续指向实际贡献该段内容的来源文件：
+
+```markdown
+注意力机制计算值的加权和。^[attention-paper.md:12-18]
+
+多头注意力并行应用该机制 h 次。^[transformer-architecture.md:44-51]
+```
+
+## Wikilinks 和别名
+
+- 使用 `[[slug]]` 简单链接，或 `[[slug|显示标题]]` 管道语法
+- 管道语法在页面文件名与显示标题不同时保持链接稳定
+- 页面 frontmatter 中声明 `aliases` 字段，使 `[[别名]]` 也能解析到该页面：
+
+```yaml
+---
+title: Multi-Head Attention
+aliases:
+  - multi-head self-attention
+  - MHA
+---
+```
+
+- 别名在 Obsidian、MCP 工具和查询中同样生效
 
 ### index.md 模板
 
@@ -203,6 +278,8 @@ AI/ML 示例：
 
 ## 比较
 
+## 总览
+
 ## 查询
 ```
 
@@ -215,13 +292,22 @@ AI/ML 示例：
 # Wiki Log
 
 > 所有 wiki 操作的按时间顺序记录。只追加。
-> 格式：`## [YYYY-MM-DD] action | subject`
-> 操作：ingest, update, query, lint, create, archive, delete
+> 格式：`## [YYYY-MM-DDThh:mm:ssZ] operation | description`
+> 操作：ingest, compile, update, query, lint, create, archive, delete
 > 当此文件超过 500 条时，轮转：重命名为 log-YYYY.md，重新开始。
 
-## [YYYY-MM-DD] create | Wiki initialized
-- 领域: [domain]
-- 创建了 SCHEMA.md, index.md, log.md
+## [2026-06-05T09:14:02Z] ingest | Attention Is All You Need
+- 摄入来源: https://arxiv.org/abs/1706.03762
+- 页面: [[self-attention]], [[multi-head-attention]], [[transformer]]
+
+## [2026-06-05T09:15:30Z] query | What is multi-head attention?
+- 页面: [[multi-head-attention]], [[self-attention]]
+- 已归档: 是
+```
+
+因为只有标题以 `## [` 开头，可以用标准 shell 工具提取近期操作：
+```bash
+grep "^## \[" log.md | tail -5
 ```
 
 ## 核心操作
@@ -241,27 +327,25 @@ AI/ML 示例：
 
 ② **与用户讨论要点** — 什么有趣，什么对领域重要。（自动化/cron 场景跳过此步。）
 
-③ **检查已有内容** — 搜索 index.md 并搜索所有 .md 文件找到
-   被提到的实体/概念的已有页面。这是不断增值的 wiki 和一堆重复之间的区别。
+③ **阶段 1：概念提取** — 从所有来源中提取实体、概念和比较关系。
+   全部提取完成后再进入阶段 2。跨来源共享的概念标记为合并候选。
 
-④ **写或更新 wiki 页面：**
-   - **新实体/概念：** 仅在满足 SCHEMA.md 中的页面阈值时创建
-     （2+ 来源提及，或一个来源的核心主题）
+④ **阶段 2：页面生成** — 基于提取结果写或更新 wiki 页面：
+   - **新实体/概念：** 仅在满足页面阈值时创建
    - **已有页面：** 添加新信息，更新事实，更新 `updated` 日期。
-     当新信息与已有内容矛盾时，遵循更新策略。
-   - **交叉引用：** 每个新或更新的页面必须通过 `[[wikilinks]]` 链接到至少 2 个
-     其他页面。检查已有页面是否链接回来。
+     当新信息与已有内容矛盾时，遵循冲突处理策略。
+   - **跨来源合并：** 多来源共享的概念合并为一个页面，
+     confidence 取最小值，provenanceState 设为 merged
+   - **交叉引用：** 每个页面必须通过 `[[wikilinks]]` 链接到至少 2 个其他页面
    - **标签：** 仅使用 SCHEMA.md 分类法中的标签
-   - **来源标记：** 在综合 3+ 来源的页面上，追加 `^[raw/articles/source.md]`
-     标记可追溯到特定来源的段落。
-   - **置信度：** 对于观点密集、快速变化或单来源声明，设置
-     `confidence: medium` 或 `low`。不要标记 `high` 除非声明得到多个来源的良好支持。
+   - **引用：** 各段落末尾追加 `^[source.md]`，具体断言使用行范围 `^[source.md:42-58]`
+   - **置信度：** 设置 confidence 数值（0-1），观点密集/单来源声明 < 0.5
 
 ⑤ **更新导航：**
-   - 将新页面添加到 `index.md` 的正确分区下，按字母顺序
+   - 将新页面添加到 `index.md` 的正确分区下（按 kind 分区），按字母顺序
    - 更新 index 头部的 "总页面数" 和 "最后更新" 日期
-   - 追加到 `log.md`：`## [YYYY-MM-DD] ingest | Source Title`
-   - 在日志条目中列出每个创建或更新的文件
+   - 追加到 `log.md`：`## [YYYY-MM-DDThh:mm:ssZ] ingest | Source Title`
+   - 在日志条目中列出每个创建或更新的页面（用 [[wikilinks]] 链接）
 
 ⑥ **报告变更** — 向用户列出每个创建或更新的文件。
 
@@ -296,31 +380,36 @@ AI/ML 示例：
    比较文件系统与索引条目。
 
 ④ **Frontmatter 验证：** 每个 wiki 页面必须有所有必填字段
-   （title, created, updated, type, tags, sources）。标签必须在分类法中。
+   （title, created, updated, kind, tags, sources）。标签必须在分类法中。
 
-⑤ **陈旧内容：** 页面的 `updated` 日期比提到相同实体的最新来源
-   旧 90+ 天。
+⑤ **来源新鲜度：**
+   - **Stale** — 页面记录的来源 sha256 与磁盘上文件不匹配
+   - **Orphaned** — 页面记录的所有来源已从 raw/ 中删除
 
-⑥ **矛盾：** 同一主题的页面有冲突声明。寻找共享标签/实体但陈述不同事实的
-   页面。标记所有 `contested: true` 或 `contradictions:` frontmatter 的页面供用户审查。
+⑥ **矛盾：** 同一主题的页面有冲突声明。标记所有有 `contradictedBy` frontmatter 的页面供用户审查。
 
-⑦ **质量信号：** 列出 `confidence: low` 的页面以及任何只引用单一来源
-   但没有设置 confidence 字段的页面 — 这些是寻找佐证或降级为 `confidence: medium` 的候选。
+⑦ **质量信号：** 列出 confidence < 0.5 的页面以及任何只引用单一来源
+   但没有设置 confidence 字段的页面 — 这些是寻找佐证或降级的候选。
 
-⑧ **来源漂移：** 对于 `raw/` 中每个有 `sha256:` frontmatter 的文件，重新计算
-   哈希并标记不匹配。不匹配表明原始文件被编辑（不应发生 — raw/ 不可变）
-   或从已更改的 URL 摄入。不是硬错误，但值得报告。
+⑧ **引用验证：**
+   - `^[...]` 中的文件名在 raw/ 中不存在 → 错误
+   - 引用语法不可解析 → 错误
+   - 行范围不可能（起始行 0 或结束行 < 起始行）→ 错误
+   - 行范围超出源文件长度 → 警告
 
-⑨ **页面大小：** 标记超过 200 行的页面 — 拆分候选。
+⑨ **来源漂移：** 对于 `raw/` 中每个有 `sha256:` frontmatter 的文件，重新计算
+   哈希并标记不匹配。
 
-⑩ **标签审计：** 列出所有使用中的标签，标记任何不在 SCHEMA.md 分类法中的。
+⑩ **页面大小：** 标记超过 200 行的页面 — 拆分候选。
 
-⑪ **日志轮转：** 如果 log.md 超过 500 条，轮转它。
+⑪ **标签审计：** 列出所有使用中的标签，标记任何不在 SCHEMA.md 分类法中的。
 
-⑫ **报告发现** 附带具体文件路径和建议操作，按严重性分组
-   （断链 > 孤儿 > 来源漂移 > 矛盾页面 > 陈旧内容 > 样式问题）。
+⑫ **日志轮转：** 如果 log.md 超过 500 条，轮转它。
 
-⑬ **追加到 log.md：** `## [YYYY-MM-DD] lint | N issues found`
+⑬ **报告发现** 附带具体文件路径和建议操作，按严重性分组
+   （断链 > 引用错误 > 孤儿 > 来源漂移 > 矛盾页面 > 陈旧内容 > 样式问题）。
+
+⑭ **追加到 log.md：** `## [YYYY-MM-DDThh:mm:ssZ] lint | N issues found`
 
 ## 批量摄入
 
@@ -346,13 +435,15 @@ AI/ML 示例：
 - **永远不要修改 raw/ 中的文件** — 来源是不可变的。更正写在 wiki 页面中。
 - **总是先定向** — 在新会话中做任何操作之前读 SCHEMA + index + 最近日志。
   跳过这步会导致重复和遗漏交叉引用。
+- **必须两阶段编译** — 先提取全部概念再写页面。逐个来源顺序处理会导致重复页面和遗漏合并。
 - **总是更新 index.md 和 log.md** — 跳过这步会让 wiki 退化。这些是导航骨架。
-- **不要为附带提及创建页面** — 遵循 SCHEMA.md 中的页面阈值。在脚注中出现一次的名字不值得创建实体页面。
+- **不要为附带提及创建页面** — 遵循页面阈值。在脚注中出现一次的名字不值得创建实体页面。
 - **不要创建没有交叉引用的页面** — 孤立页面是不可见的。每个页面必须链接到至少 2 个其他页面。
 - **Frontmatter 是必需的** — 它启用搜索、过滤和陈旧检测。
 - **标签必须来自分类法** — 自由格式标签会退化为噪声。先在 SCHEMA.md 添加新标签，然后使用。
 - **保持页面可扫描** — 一个 wiki 页面应该可以在 30 秒内读完。超过 200 行的页面拆分。将详细分析移到专门的深度页面。
 - **批量更新前先询问** — 如果一次摄入会影响 10+ 个已有页面，先与用户确认范围。
 - **轮转日志** — log.md 超过 500 条时，重命名为 `log-YYYY.md` 并重新开始。
-  代理应在检查时检查日志大小。
-- **显式处理矛盾** — 不要静默覆盖。记录两个声明并标注日期，在 frontmatter 中标记，标记供用户审查。
+- **显式处理矛盾** — 不要静默覆盖。记录两个声明并标注日期，在 frontmatter 中标记 contradictedBy，标记供用户审查。
+- **多来源合并调 frontmatter** — confidence 取最小值，provenanceState 设 merged，contradictedBy 取去重并集。
+- **使用 claim 级引用** — 对具体数字和技术断言，用 `^[file.md:42-58]` 精确到行范围，不要只写文件级引用。

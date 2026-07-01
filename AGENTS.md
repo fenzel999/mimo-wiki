@@ -22,6 +22,7 @@ wiki/
 ├── entities/           # 实体页面
 ├── concepts/           # 概念页面
 ├── comparisons/        # 比较页面
+├── overviews/          # 领域地图页面
 └── queries/            # 归档的查询结果
 ```
 
@@ -35,6 +36,14 @@ wiki/
 4. 对于 100+ 页面的 wiki，在创建任何新内容之前还要搜索当前主题
 5. 以上步骤完成后才能执行任何操作
 
+### 两阶段编译
+
+摄入来源时必须遵循两阶段：
+1. **概念提取** — 先读所有来源，提取所有实体/概念/比较关系，完成后再写页面
+2. **页面生成** — 基于提取的全局概念集合生成页面，跨来源共享的概念合并为一个页面
+
+不要逐个来源顺序处理——先看完所有来源的概念再写，避免重复页面和遗漏合并。
+
 ### raw/ 目录
 
 - raw/ 中的文件是不可变的原始来源，永远不要修改
@@ -47,10 +56,30 @@ wiki/
 - 一个实体/概念出现在 2+ 来源中，或是一个来源的核心主题时，才创建页面
 - 附带提及、次要细节不创建页面
 - 每个页面必须有至少 2 个出站 `[[wikilinks]]`
-- 每个页面必须有 frontmatter：title、created、updated、type、tags、sources
+- 每个页面必须有 frontmatter：title、created、updated、kind、tags、sources
 - 页面超过 200 行时拆分为子主题页面
-- 对于观点密集、快速变化或单来源声明，设置 confidence: medium 或 low
-- 综合了 3+ 来源的页面，在段落末尾追加来源标记：`^[raw/articles/source-file.md]`
+- 对于观点密集、快速变化或单来源声明，设置 confidence 为 0-1 之间的数值（低于 0.5 标记为待审查）
+- 综合了 3+ 来源的页面，在段落末尾追加来源标记
+
+### 页面类型 (kind)
+
+- **concept** — 独立的想法、技术或模式。解释"它是什么"。默认类型
+- **entity** — 具体的命名事物：人物、组织、产品、模型
+- **comparison** — 两个或多个概念/实体的并排分析，沿共享维度比较
+- **overview** — 连接某个领域多个相关概念的地图页面，提供主题集群入口
+
+### 引用
+
+- **段落级引用：** 段落末尾追加 `^[raw/articles/source-file.md]`
+- **Claim 级引用：** 对具体数字、技术断言、直接引述，精确定位到行范围：`^[file.md:42-58]` 或 `^[file.md#L42-L58]`
+- 综合了 3+ 来源的页面必须使用引用标记
+- 引用中的文件名不要加 `raw/` 前缀，使用 bare filename
+
+### Wikilinks 和别名
+
+- 使用 `[[slug]]` 或 `[[slug|显示标题]]` 管道语法创建链接
+- 页面 frontmatter 中可声明 `aliases` 字段，使 `[[别名]]` 也能解析到该页面
+- 别名在 Obsidian 和索引中同样生效
 
 ### 标签
 
@@ -71,7 +100,20 @@ wiki/
 - 不要静默覆盖已有内容
 - 检查日期，较新的来源通常取代较旧的
 - 记录两个声明并标注日期和来源
-- 在 frontmatter 中标记：contradictions: [page-name]
+- 在 frontmatter 中标记：contradictedBy: [page-slug]
+
+### 来源合并时 frontmatter 调节
+
+多来源合并到同一页面时：
+- confidence 取所有来源中的**最小值**
+- provenanceState 设为 `merged`
+- contradictedBy 取所有来源的**去重并集**
+
+### 来源新鲜度
+
+- **Stale** — 页面记录的来源 sha256 与磁盘上文件不匹配（来源内容已变化）
+- **Orphaned** — 页面记录的所有来源已从 raw/ 中删除
+- 检查(lint)时必须报告 stale 和 orphaned 页面
 
 ### 索引扩展
 
@@ -80,7 +122,7 @@ wiki/
 
 ### 日志和索引
 
-- 每次操作都必须追加到 log.md
+- 每次操作都必须追加到 log.md，格式：`## [YYYY-MM-DDThh:mm:ssZ] operation | description`
 - 每个新页面必须添加到 index.md 的正确分区下，按字母顺序
 - log.md 超过 500 条时，重命名为 log-YYYY.md 并重新开始
 
