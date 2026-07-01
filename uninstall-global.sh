@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# mimo-wiki 从当前项目卸载 (macOS / Linux)
-# 用法: curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash
+# mimo-wiki 从全局卸载 (macOS / Linux)
+# 用法: curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.sh | bash
 
 set -e
 
-TARGET="$(pwd)"
+TARGET="$HOME/.config/mimocode"
 echo "从 $TARGET 卸载 mimo-wiki"
 echo ""
 
@@ -36,4 +36,3 @@ done
 
 echo ""
 echo "完成: 删除了 $removed 个文件"
-echo "注意: wiki 数据目录（默认 ~/wiki）未删除，需要手动删除"

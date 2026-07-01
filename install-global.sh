@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# mimo-wiki 安装到当前项目 (macOS / Linux)
-# 用法: curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
+# mimo-wiki 安装到全局 (macOS / Linux)
+# 用法: curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.sh | bash
 
 set -e
 
 REPO="fenzel999/mimo-wiki"
 BRANCH="master"
 BASE="https://raw.githubusercontent.com/$REPO/$BRANCH"
-TARGET="$(pwd)"
+TARGET="$HOME/.config/mimocode"
 
 FILES=(
   "AGENTS.md"
@@ -21,7 +21,7 @@ FILES=(
   "skills/llm-wiki/references/citations.md"
 )
 
-echo "mimo-wiki 安装到: $TARGET"
+echo "mimo-wiki 全局安装到: $TARGET"
 echo ""
 
 installed=0

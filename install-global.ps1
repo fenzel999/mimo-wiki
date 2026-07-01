@@ -1,10 +1,10 @@
-# mimo-wiki 安装到当前项目 (Windows PowerShell)
-# 用法: irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex
+# mimo-wiki 全局安装 (Windows PowerShell)
+# 用法: irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.ps1 | iex
 
 $repo = "fenzel999/mimo-wiki"
 $branch = "master"
 $base = "https://raw.githubusercontent.com/$repo/$branch"
-$target = Get-Location
+$target = Join-Path $env:USERPROFILE ".config\mimocode"
 
 $files = @(
     "AGENTS.md"
@@ -18,7 +18,7 @@ $files = @(
     "skills/llm-wiki/references/citations.md"
 )
 
-Write-Host "mimo-wiki 安装到: $target"
+Write-Host "mimo-wiki 全局安装到: $target"
 Write-Host ""
 
 $installed = 0

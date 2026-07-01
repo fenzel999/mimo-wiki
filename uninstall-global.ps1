@@ -1,7 +1,7 @@
-# mimo-wiki 从当前项目卸载 (Windows PowerShell)
-# 用法: irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.ps1 | iex
+# mimo-wiki 从全局卸载 (Windows PowerShell)
+# 用法: irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.ps1 | iex
 
-$target = Get-Location
+$target = Join-Path $env:USERPROFILE ".config\mimocode"
 
 Write-Host "从 $target 卸载 mimo-wiki"
 Write-Host ""
@@ -38,4 +38,3 @@ foreach ($dir in @("skills/llm-wiki/references", "skills/llm-wiki/templates", "s
 
 Write-Host ""
 Write-Host "完成: 删除了 $removed 个文件"
-Write-Host "注意: wiki 数据目录（默认 ~/wiki）未删除，需要手动删除"

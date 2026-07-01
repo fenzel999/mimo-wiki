@@ -16,30 +16,48 @@
 
 ## 安装
 
-### Windows (PowerShell)
+### 项目级（当前目录）
 
+**Windows PowerShell：**
 ```powershell
-# 安装到当前项目（默认）
 irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex
-
-# 安装到全局（所有项目可用）
-irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex; Install-MimoWiki -Global
-
-# 卸载
-irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.ps1 | iex
 ```
 
-### macOS / Linux (bash)
-
+**macOS / Linux：**
 ```bash
-# 安装到当前项目（默认）
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
+```
 
-# 安装到全局（所有项目可用）
-curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --global
+### 全局（所有项目可用）
 
-# 卸载
+安装到 `~/.config/mimocode/`
+
+**Windows PowerShell：**
+```powershell
+irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.ps1 | iex
+```
+
+**macOS / Linux：**
+```bash
+curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install-global.sh | bash
+```
+
+### 卸载
+
+**项目级：**
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.ps1 | iex
+# macOS / Linux
 curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall.sh | bash
+```
+
+**全局：**
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.ps1 | iex
+# macOS / Linux
+curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/uninstall-global.sh | bash
 ```
 
 ## 使用
