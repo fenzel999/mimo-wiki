@@ -57,24 +57,40 @@ AI 代理读 AGENTS.md 知道"必须怎么做、不能怎么做"，读 SKILL.md 
 
 ## 安装
 
-### 项目级 vs 全局
+### 一行命令，脚本会提示你选择
 
-| | 项目级 | 全局 |
-|--|--------|------|
-| 安装到 | 当前目录 | `~/.config/mimocode/` |
-| 作用范围 | 仅当前项目 | 所有项目 |
-| 适合 | 特定领域的 wiki | 通用 wiki 规则 |
+| 平台 | 命令 | 说明 |
+|------|------|------|
+| **Windows** | `irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 \| iex` | 脚本提示 1=项目 2=全局 |
+| **macOS / Linux** | `curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh \| bash` | 脚本提示 1=项目 2=全局 |
 
-### 安装命令
+运行后脚本会问两个问题：安装到哪？ 1（当前项目）或 2（全局 `~/.config/mimocode/`）。
 
-| | Windows (PowerShell) | macOS / Linux (bash) |
-|--|----------------------|---------------------|
-| **项目级** | `irm .../install.ps1 \| iex` | `curl -sSL .../install.sh \| bash` |
-| **全局** | `irm .../install-global.ps1 \| iex` | `curl -sSL .../install-global.sh \| bash` |
-| **卸载项目级** | `irm .../uninstall.ps1 \| iex` | `curl -sSL .../uninstall.sh \| bash` |
-| **卸载全局** | `irm .../uninstall-global.ps1 \| iex` | `curl -sSL .../uninstall-global.sh \| bash` |
+### 卸载
 
-URL 前缀：`https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/`
+同样的脚本，加 `--uninstall` 参数：
+
+**Windows：**
+```powershell
+irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall'
+```
+
+**macOS / Linux：**
+```bash
+curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall
+```
+
+脚本提示选择卸载位置，并确认后才执行。
+
+### Hermes 安装
+
+全局安装后 Hermes 自动识别 AGENTS.md + SKILL.md。
+
+如果 Hermes 只索引 `~/.hermes/skills/` 而非 `~/.config/mimocode/skills/`，请将全局安装到的 `.config` 改为 `.hermes`：
+
+```
+~/.hermes/mimocode/
+```
 
 ## Wiki 目录结构
 
