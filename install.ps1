@@ -6,18 +6,15 @@
 # 指定参数跳过交互:
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Local'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Global'
-#   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Hermes'
 #
 # 卸载:
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Local'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Global'
-#   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Hermes'
 
 param(
     [switch]$Local,
     [switch]$Global,
-    [switch]$Hermes,
     [switch]$Uninstall
 )
 
@@ -40,36 +37,31 @@ $files = @(
 $action = if ($Uninstall) { "uninstall" } else { "install" }
 
 # ─── 未指定则交互 ──────────────────────────────────────────
-if (-not ($Local -or $Global -or $Hermes)) {
+if (-not ($Local -or $Global)) {
     $currentDir = (Get-Location).Path
     $globalDir = Join-Path $env:USERPROFILE ".config\mimocode"
-    $hermesDir = Join-Path $env:USERPROFILE ".hermes"
     $actionName = if ($Uninstall) { "Uninstaller" } else { "Installer" }
 
     Write-Host "========================================================"
     Write-Host "  mimo-wiki $actionName"
     Write-Host "========================================================"
     Write-Host ""
-    Write-Host "  1) Current project (MiMo / Claude Code / Codex)"
-    Write-Host "  2) All projects  -> $globalDir"
-    Write-Host "  3) Hermes         -> $hermesDir\skills\ (AGENTS.md in project dir)"
+    Write-Host "  1) Current project → $currentDir"
+    Write-Host "  2) All projects    → $globalDir"
     Write-Host ""
-    $choice = Read-Host "  Choice [1/2/3]"
+    $choice = Read-Host "  Choice [1/2]"
 
     switch ($choice) {
         "1" { $Local = $true }
         "2" { $Global = $true }
-        "3" { $Hermes = $true }
         default {
-            Write-Host "  Invalid: $choice (1=project, 2=global, 3=Hermes)"
+            Write-Host "  Invalid: $choice (1=project, 2=global)"
             exit 1
         }
     }
 
     if ($Uninstall) {
-        if ($Local) { $label = $currentDir }
-        elseif ($Global) { $label = $globalDir }
-        else { $label = "$hermesDir\skills\llm-wiki" }
+        $label = if ($Local) { $currentDir } else { $globalDir }
         $confirm = Read-Host "  Confirm uninstall $label ? [y/N]"
         if ($confirm -ne "y" -and $confirm -ne "Y") {
             Write-Host "  Cancelled"
@@ -79,12 +71,12 @@ if (-not ($Local -or $Global -or $Hermes)) {
 }
 
 # ─── 目标路径 ──────────────────────────────────────────────
-if ($Hermes) {
-    $target = Join-Path $env:USERPROFILE ".hermes"
-} elseif ($Global) {
+if ($Global) {
     $target = Join-Path $env:USERPROFILE ".config\mimocode"
+    $wikiPath = Join-Path $target "wiki"
 } else {
     $target = Get-Location
+    $wikiPath = Join-Path $target "wiki"
 }
 
 # ─── 安装 ──────────────────────────────────────────────────
@@ -117,14 +109,9 @@ function Install-MimoWiki {
     Write-Host ""
     Write-Host "Done: $installed installed, $skipped skipped"
     Write-Host ""
-    if ($Hermes) {
-        Write-Host "Hermes: skill in ~/.hermes/skills/llm-wiki/, use /reload-skills."
-        Write-Host "AGENTS.md must be in project root (Hermes reads only cwd AGENTS.md)."
-    } elseif ($Global) {
-        Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
-    } else {
-        Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
-    }
+    Write-Host "Wiki data will be at: $wikiPath"
+    Write-Host ""
+    Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
 }
 
 # ─── 卸载 ──────────────────────────────────────────────────
@@ -152,7 +139,7 @@ function Uninstall-MimoWiki {
 
     Write-Host ""
     Write-Host "Done: $removed files deleted"
-    Write-Host "Note: wiki data (~/wiki or ~\.config\mimocode\wiki) not removed"
+    Write-Host "Note: wiki data ($wikiPath) not removed — delete manually if needed"
 }
 
 switch ($action) {

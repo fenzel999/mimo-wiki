@@ -2,7 +2,12 @@
 
 ## Wiki 位置
 
-路径通过环境变量 `WIKI_PATH` 设置，未设置时默认 `~/wiki`。
+wiki 数据存放在 AGENTS.md 所在目录的 `wiki/` 子目录下。
+
+- 项目级安装：`<项目根>/wiki/`
+- 全局安装：`~/.config/mimocode/wiki/`
+
+`WIKI_PATH` 环境变量可覆盖此默认值。
 
 ## 会话开始时
 

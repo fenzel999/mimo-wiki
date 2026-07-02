@@ -64,12 +64,11 @@ AI 代理读 AGENTS.md 知道"必须怎么做、不能怎么做"，读 SKILL.md 
 | **Windows** | `irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 \| iex` |
 | **macOS / Linux** | `curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh \| bash` |
 
-运行后脚本提示三个选项：
+运行后脚本提示两个选项：
 
 ```
-  1) 当前项目  → MiMo / Claude Code / Codex 等
-  2) 所有项目  → ~/.config/mimocode/
-  3) Hermes    → ~/.hermes/skills/llm-wiki/
+  1) 当前项目 → MiMo Code
+  2) 所有项目 → ~/.config/mimocode/
 ```
 
 ### 卸载
@@ -81,19 +80,19 @@ AI 代理读 AGENTS.md 知道"必须怎么做、不能怎么做"，读 SKILL.md 
 | **Windows** | `irm .../install.ps1 \| iex -args '-Uninstall'` |
 | **macOS / Linux** | `curl -sSL .../install.sh \| bash -s -- --uninstall` |
 
-### Hermes 兼容
+### Wiki 数据路径
 
-Hermes 完全支持 `AGENTS.md`（cwd only）和 `skills/`。
+| 安装方式 | AGENTS.md 位置 | Wiki 数据位置 |
+|---------|---------------|---------------|
+| 项目级 | `<项目根>/AGENTS.md` | `<项目根>/wiki/` |
+| 全局 | `~/.config/mimocode/AGENTS.md` | `~/.config/mimocode/wiki/` |
 
-选 3 安装到 `~/.hermes/` 后，AGENTS.md 在项目根目录，SKILL.md 在 `~/.hermes/skills/llm-wiki/`。
-执行 `/reload-skills` 刷新技能索引。
-
-Hermes 每新会话会读当前工作目录下的 `AGENTS.md`（行话：只读 cwd，不走父目录）。
+`WIKI_PATH` 环境变量可覆盖默认值。
 
 ## Wiki 目录结构
 
 ```
-~/wiki/                          ← WIKI_PATH（可自定义，默认 ~/wiki）
+<AGENTS.md 所在目录>/wiki/     ← 跟着 AGENTS.md 走
 ├── SCHEMA.md                    # 领域约定 + 标签分类法
 ├── index.md                     # 内容目录（按类型分区，字母排序）
 ├── log.md                       # 操作日志（只追加，500 条轮转）

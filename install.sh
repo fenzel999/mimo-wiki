@@ -7,13 +7,11 @@
 # 指定参数跳过交互:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --local
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --global
-#   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --hermes
 #
 # 卸载:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --local
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --global
-#   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --hermes
 
 set -e
 
@@ -41,7 +39,6 @@ for arg in "$@"; do
   case "$arg" in
     --local)    SCOPE="local" ;;
     --global)   SCOPE="global" ;;
-    --hermes)   SCOPE="hermes" ;;
     --uninstall) ACTION="uninstall" ;;
   esac
 done
@@ -52,17 +49,15 @@ if [ -z "$SCOPE" ]; then
   echo "  mimo-wiki ${ACTION^}er"
   echo "========================================================"
   echo ""
-  echo "  1) 当前项目 (MiMo / Claude Code / Codex)"
-  echo "  2) 所有项目  → ~/.config/mimocode/"
-  echo "  3) Hermes     → ~/.hermes/skills/ (项目级仍需AGENTS.md)"
+  echo "  1) 当前项目 → $(pwd)"
+  echo "  2) 所有项目 → ~/.config/mimocode/"
   echo ""
-  >&2 read -p "  选择 [1/2/3]: " CHOICE
+  >&2 read -p "  选择 [1/2]: " CHOICE
   case "$CHOICE" in
     1|"1") SCOPE="local" ;;
     2|"2") SCOPE="global" ;;
-    3|"3") SCOPE="hermes" ;;
     *)
-      >&2 echo "  无效选择: $CHOICE (1=当前项目, 2=全局, 3=Hermes)"
+      >&2 echo "  无效选择: $CHOICE (1=当前项目, 2=全局)"
       exit 1
       ;;
   esac
@@ -70,7 +65,6 @@ if [ -z "$SCOPE" ]; then
     case "$SCOPE" in
       local)  TARGET_LABEL="$(pwd)" ;;
       global) TARGET_LABEL="$HOME/.config/mimocode" ;;
-      hermes) TARGET_LABEL="$HOME/.hermes/skills/llm-wiki" ;;
     esac
     >&2 echo ""
     >&2 read -p "  确认卸载 $TARGET_LABEL 吗? [y/N]: " CONFIRM
@@ -79,11 +73,13 @@ if [ -z "$SCOPE" ]; then
 fi
 
 # ─── 目标路径 ──────────────────────────────────────────────
-case "$SCOPE" in
-  global) TARGET="$HOME/.config/mimocode" ;;
-  hermes) TARGET="$HOME/.hermes" ;;
-  *)      TARGET="$(pwd)" ;;
-esac
+if [ "$SCOPE" = "global" ]; then
+  TARGET="$HOME/.config/mimocode"
+  WIKI_PATH="$HOME/.config/mimocode/wiki"
+else
+  TARGET="$(pwd)"
+  WIKI_PATH="$TARGET/wiki"
+fi
 
 # ─── 安装 ──────────────────────────────────────────────────
 install() {
@@ -105,18 +101,9 @@ install() {
   echo ""
   echo "完成: $installed 已安装, $skipped 跳过"
   echo ""
-  case "$SCOPE" in
-    hermes)
-      echo "Hermes: skill 已装到 ~/.hermes/skills/llm-wiki/，/reload-skills 刷新即可。"
-      echo "AGENTS.md 需放在项目根目录（Hermes 只读当前工作目录下的 AGENTS.md）。"
-      ;;
-    global)
-      echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
-      ;;
-    *)
-      echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
-      ;;
-  esac
+  echo "Wiki 数据将存放在: $WIKI_PATH"
+  echo ""
+  echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
 }
 
 # ─── 卸载 ──────────────────────────────────────────────────
@@ -137,7 +124,7 @@ uninstall() {
   done
   echo ""
   echo "完成: 删除了 $removed 个文件"
-  echo "注意: wiki 数据目录（默认 ~/wiki）未删除，需要手动删除"
+  echo "注意: wiki 数据目录 ($WIKI_PATH) 未删除，需要手动删除"
 }
 
 case "$ACTION" in
