@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # mimo-wiki 安装/卸载 (macOS / Linux)
 #
-# 安装:
+# 安装（交互选择位置）:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash
+#
+# 指定参数跳过交互:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --local
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --global
+#   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --hermes
 #
 # 卸载:
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --local
 #   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --global
+#   curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall --hermes
 
 set -e
 
@@ -30,13 +34,14 @@ FILES=(
 )
 
 # ─── 解析参数 ──────────────────────────────────────────────
-ACTION="install"  # install | uninstall
-SCOPE=""          # local | global | "" = ask
+ACTION="install"
+SCOPE=""
 
 for arg in "$@"; do
   case "$arg" in
     --local)    SCOPE="local" ;;
     --global)   SCOPE="global" ;;
+    --hermes)   SCOPE="hermes" ;;
     --uninstall) ACTION="uninstall" ;;
   esac
 done
@@ -47,35 +52,38 @@ if [ -z "$SCOPE" ]; then
   echo "  mimo-wiki ${ACTION^}er"
   echo "========================================================"
   echo ""
-  echo "  1) 当前项目  → $(pwd)"
-  echo "  2) 全局       → $HOME/.config/mimocode/"
+  echo "  1) 当前项目 (MiMo / Claude Code / Codex)"
+  echo "  2) 所有项目  → ~/.config/mimocode/"
+  echo "  3) Hermes     → ~/.hermes/skills/ (项目级仍需AGENTS.md)"
   echo ""
-  >&2 read -p "  选择 [1/2]: " CHOICE
+  >&2 read -p "  选择 [1/2/3]: " CHOICE
   case "$CHOICE" in
-    1|"1)")
-      SCOPE="local"
-      ;;
-    2|"2)")
-      SCOPE="global"
-      ;;
+    1|"1") SCOPE="local" ;;
+    2|"2") SCOPE="global" ;;
+    3|"3") SCOPE="hermes" ;;
     *)
-      >&2 echo "  无效选择: $CHOICE (1=本地, 2=全局)"
+      >&2 echo "  无效选择: $CHOICE (1=当前项目, 2=全局, 3=Hermes)"
       exit 1
       ;;
   esac
   if [ "$ACTION" = "uninstall" ]; then
+    case "$SCOPE" in
+      local)  TARGET_LABEL="$(pwd)" ;;
+      global) TARGET_LABEL="$HOME/.config/mimocode" ;;
+      hermes) TARGET_LABEL="$HOME/.hermes/skills/llm-wiki" ;;
+    esac
     >&2 echo ""
-    >&2 read -p "  确认卸载 $( [ "$SCOPE" = "local" ] && echo "$(pwd)" || echo "$HOME/.config/mimocode" ) 吗? [y/N]: " CONFIRM
+    >&2 read -p "  确认卸载 $TARGET_LABEL 吗? [y/N]: " CONFIRM
     [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ] && { echo "  已取消"; exit 0; }
   fi
 fi
 
 # ─── 目标路径 ──────────────────────────────────────────────
-if [ "$SCOPE" = "global" ]; then
-  TARGET="$HOME/.config/mimocode"
-else
-  TARGET="$(pwd)"
-fi
+case "$SCOPE" in
+  global) TARGET="$HOME/.config/mimocode" ;;
+  hermes) TARGET="$HOME/.hermes" ;;
+  *)      TARGET="$(pwd)" ;;
+esac
 
 # ─── 安装 ──────────────────────────────────────────────────
 install() {
@@ -97,14 +105,24 @@ install() {
   echo ""
   echo "完成: $installed 已安装, $skipped 跳过"
   echo ""
-  echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
+  case "$SCOPE" in
+    hermes)
+      echo "Hermes: skill 已装到 ~/.hermes/skills/llm-wiki/，/reload-skills 刷新即可。"
+      echo "AGENTS.md 需放在项目根目录（Hermes 只读当前工作目录下的 AGENTS.md）。"
+      ;;
+    global)
+      echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
+      ;;
+    *)
+      echo "下一步: 在 MiMo Code 中说 \"帮我创建一个新的 LLM Wiki\""
+      ;;
+  esac
 }
 
 # ─── 卸载 ──────────────────────────────────────────────────
 uninstall() {
   echo "从 $TARGET 卸载 mimo-wiki"
   echo ""
-  # 倒序删除（文件逆序→然后删除空目录）
   local removed=0
   for ((i=${#FILES[@]}-1; i>=0; i--)); do
     local dest="$TARGET/${FILES[i]}"
@@ -122,7 +140,6 @@ uninstall() {
   echo "注意: wiki 数据目录（默认 ~/wiki）未删除，需要手动删除"
 }
 
-# ─── 执行 ──────────────────────────────────────────────────
 case "$ACTION" in
   install)   install ;;
   uninstall) uninstall ;;

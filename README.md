@@ -59,38 +59,36 @@ AI 代理读 AGENTS.md 知道"必须怎么做、不能怎么做"，读 SKILL.md 
 
 ### 一行命令，脚本会提示你选择
 
-| 平台 | 命令 | 说明 |
-|------|------|------|
-| **Windows** | `irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 \| iex` | 脚本提示 1=项目 2=全局 |
-| **macOS / Linux** | `curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh \| bash` | 脚本提示 1=项目 2=全局 |
+| 平台 | 命令 |
+|------|------|
+| **Windows** | `irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 \| iex` |
+| **macOS / Linux** | `curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh \| bash` |
 
-运行后脚本会问两个问题：安装到哪？ 1（当前项目）或 2（全局 `~/.config/mimocode/`）。
+运行后脚本提示三个选项：
+
+```
+  1) 当前项目  → MiMo / Claude Code / Codex 等
+  2) 所有项目  → ~/.config/mimocode/
+  3) Hermes    → ~/.hermes/skills/llm-wiki/
+```
 
 ### 卸载
 
-同样的脚本，加 `--uninstall` 参数：
+同样的脚本，加 `--uninstall`：
 
-**Windows：**
-```powershell
-irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall'
-```
+| 平台 | 命令 |
+|------|------|
+| **Windows** | `irm .../install.ps1 \| iex -args '-Uninstall'` |
+| **macOS / Linux** | `curl -sSL .../install.sh \| bash -s -- --uninstall` |
 
-**macOS / Linux：**
-```bash
-curl -sSL https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.sh | bash -s -- --uninstall
-```
+### Hermes 兼容
 
-脚本提示选择卸载位置，并确认后才执行。
+Hermes 完全支持 `AGENTS.md`（cwd only）和 `skills/`。
 
-### Hermes 安装
+选 3 安装到 `~/.hermes/` 后，AGENTS.md 在项目根目录，SKILL.md 在 `~/.hermes/skills/llm-wiki/`。
+执行 `/reload-skills` 刷新技能索引。
 
-全局安装后 Hermes 自动识别 AGENTS.md + SKILL.md。
-
-如果 Hermes 只索引 `~/.hermes/skills/` 而非 `~/.config/mimocode/skills/`，请将全局安装到的 `.config` 改为 `.hermes`：
-
-```
-~/.hermes/mimocode/
-```
+Hermes 每新会话会读当前工作目录下的 `AGENTS.md`（行话：只读 cwd，不走父目录）。
 
 ## Wiki 目录结构
 

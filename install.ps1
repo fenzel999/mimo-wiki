@@ -1,18 +1,23 @@
 # mimo-wiki 安装/卸载 (Windows PowerShell)
 #
-# 安装:
+# 安装（交互选择位置）:
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex
+#
+# 指定参数跳过交互:
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Local'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Global'
+#   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Hermes'
 #
 # 卸载:
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Local'
 #   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Global'
+#   irm https://raw.githubusercontent.com/fenzel999/mimo-wiki/master/install.ps1 | iex -args '-Uninstall','-Hermes'
 
 param(
     [switch]$Local,
     [switch]$Global,
+    [switch]$Hermes,
     [switch]$Uninstall
 )
 
@@ -35,32 +40,37 @@ $files = @(
 $action = if ($Uninstall) { "uninstall" } else { "install" }
 
 # ─── 未指定则交互 ──────────────────────────────────────────
-if (-not ($Local -or $Global)) {
+if (-not ($Local -or $Global -or $Hermes)) {
     $currentDir = (Get-Location).Path
     $globalDir = Join-Path $env:USERPROFILE ".config\mimocode"
+    $hermesDir = Join-Path $env:USERPROFILE ".hermes"
     $actionName = if ($Uninstall) { "Uninstaller" } else { "Installer" }
 
     Write-Host "========================================================"
     Write-Host "  mimo-wiki $actionName"
     Write-Host "========================================================"
     Write-Host ""
-    Write-Host "  1) Current project → $currentDir"
-    Write-Host "  2) Global          → $globalDir"
+    Write-Host "  1) Current project (MiMo / Claude Code / Codex)"
+    Write-Host "  2) All projects  -> $globalDir"
+    Write-Host "  3) Hermes         -> $hermesDir\skills\ (AGENTS.md in project dir)"
     Write-Host ""
-    $choice = Read-Host "  Choice [1/2]"
+    $choice = Read-Host "  Choice [1/2/3]"
 
     switch ($choice) {
         "1" { $Local = $true }
         "2" { $Global = $true }
+        "3" { $Hermes = $true }
         default {
-            Write-Host "  Invalid: $choice (1=local, 2=global)"
+            Write-Host "  Invalid: $choice (1=project, 2=global, 3=Hermes)"
             exit 1
         }
     }
 
     if ($Uninstall) {
-        $targetLabel = if ($Local) { $currentDir } else { $globalDir }
-        $confirm = Read-Host "  Confirm uninstall $targetLabel ? [y/N]"
+        if ($Local) { $label = $currentDir }
+        elseif ($Global) { $label = $globalDir }
+        else { $label = "$hermesDir\skills\llm-wiki" }
+        $confirm = Read-Host "  Confirm uninstall $label ? [y/N]"
         if ($confirm -ne "y" -and $confirm -ne "Y") {
             Write-Host "  Cancelled"
             exit 0
@@ -69,10 +79,12 @@ if (-not ($Local -or $Global)) {
 }
 
 # ─── 目标路径 ──────────────────────────────────────────────
-$target = if ($Global) {
-    Join-Path $env:USERPROFILE ".config\mimocode"
+if ($Hermes) {
+    $target = Join-Path $env:USERPROFILE ".hermes"
+} elseif ($Global) {
+    $target = Join-Path $env:USERPROFILE ".config\mimocode"
 } else {
-    Get-Location
+    $target = Get-Location
 }
 
 # ─── 安装 ──────────────────────────────────────────────────
@@ -105,7 +117,14 @@ function Install-MimoWiki {
     Write-Host ""
     Write-Host "Done: $installed installed, $skipped skipped"
     Write-Host ""
-    Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
+    if ($Hermes) {
+        Write-Host "Hermes: skill in ~/.hermes/skills/llm-wiki/, use /reload-skills."
+        Write-Host "AGENTS.md must be in project root (Hermes reads only cwd AGENTS.md)."
+    } elseif ($Global) {
+        Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
+    } else {
+        Write-Host 'Next: say "帮我创建一个新的 LLM Wiki" in MiMo Code'
+    }
 }
 
 # ─── 卸载 ──────────────────────────────────────────────────
@@ -114,7 +133,6 @@ function Uninstall-MimoWiki {
     Write-Host ""
     $removed = 0
 
-    # 倒序删除文件
     for ($i = $files.Count - 1; $i -ge 0; $i--) {
         $dest = Join-Path $target $files[$i]
         if (Test-Path $dest) {
@@ -124,7 +142,6 @@ function Uninstall-MimoWiki {
         }
     }
 
-    # 删除空目录
     foreach ($dir in @("skills/llm-wiki/references", "skills/llm-wiki/templates", "skills/llm-wiki", "skills")) {
         $path = Join-Path $target $dir
         if ((Test-Path $path) -and ((Get-ChildItem $path -Force | Measure-Object).Count -eq 0)) {
@@ -138,7 +155,6 @@ function Uninstall-MimoWiki {
     Write-Host "Note: wiki data (~/wiki or ~\.config\mimocode\wiki) not removed"
 }
 
-# ─── 执行 ──────────────────────────────────────────────────
 switch ($action) {
     "install"   { Install-MimoWiki }
     "uninstall" { Uninstall-MimoWiki }
